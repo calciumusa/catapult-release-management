@@ -155,10 +155,15 @@ else
   end
   branch_management("develop-catapult")
   branch_management("develop")
+  # create the release branch if it does not exist
+  if not @branches.find { |element| element.include?("refs/heads/release") }
+    `#{@git} checkout release`
+    `#{@git} push origin release`
+  end
   # checkout original branch
   `#{@git} checkout #{branch}`
 end
-# create a git pre-commit hook to ensure no configuration is committed to develop and only configuration is committed to master
+# create a git pre-commit hook to ensure no configuration is committed to develop-catapult
 FileUtils.mkdir_p(".git/hooks")
 File.write('.git/hooks/pre-commit',
 '#!/usr/bin/env ruby
@@ -192,9 +197,14 @@ elsif "#{branch}" == "develop"
     puts "To contribute to Catapult, please switch to the develop-catapult branch."
     exit 1
   end
+elsif "#{branch}" == "release"
+  unless staged.include?("secrets/configuration.yml.gpg") || staged.include?("secrets/id_rsa.gpg") || staged.include?("secrets/id_rsa.pub.gpg")
+    puts "You are trying to commit directly to the release branch, please create a pull request from develop into release instead."
+    exit 1
+  end
 elsif "#{branch}" == "master"
   unless staged.include?("secrets/configuration.yml.gpg") || staged.include?("secrets/id_rsa.gpg") || staged.include?("secrets/id_rsa.pub.gpg")
-    puts "You are trying to commit directly to the master branch, please create a pull request from develop into master instead."
+    puts "You are trying to commit directly to the master branch, please create a pull request from release into master instead."
     exit 1
   else 
     puts "To contribute to Catapult, please switch to the develop-catapult branch."
@@ -302,10 +312,14 @@ elsif "#{branch}" == "develop"
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa --decrypt secrets/id_rsa.gpg`
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa.pub --decrypt secrets/id_rsa.pub.gpg`
   end
+elsif "#{branch}" == "release"
+  puts " * You are on the release branch, this branch contains your unique secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg secrets/configuration."
+  puts " * The release branch is running in the qc environment, please first test then commit your configuration to the develop branch."
+  puts " * Once you're satisified with your new configuration in localdev and test, create a pull request from develop into release."
 elsif "#{branch}" == "master"
   puts " * You are on the master branch, this branch contains your unique secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg secrets/configuration."
-  puts " * The master branch is running in the qc and production environments, please first test then commit your configuration to the develop branch."
-  puts " * Once you're satisified with your new configuration in localdev and test, create a pull request from develop into master."
+  puts " * The master branch is running in the production environment, please first test then commit your configuration to the develop branch."
+  puts " * Once you're satisified with your new configuration in localdev and test, create a pull request from develop into release."
 end
 # create objects from secrets/configuration.yml.gpg and secrets/configuration.yml.template
 configuration = YAML.load(`gpg --batch --passphrase "#{configuration_user["settings"]["gpg_key"]}" --decrypt secrets/configuration.yml.gpg`)
@@ -596,7 +610,7 @@ configuration["environments"].each do |environment,data|
   end
   # if upstream digitalocean droplets are provisioned, get their ip addresses to write to secrets/configuration.yml
   unless environment == "dev"
-    droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{configuration["company"]["name"]}-#{environment}-redhat" }
+    droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{configuration["company"]["name"].downcase}-#{environment}-redhat" }
     unless droplet == nil
       unless configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] == droplet["networks"]["v4"].first["ip_address"]
         configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] = droplet["networks"]["v4"].first["ip_address"]
@@ -605,7 +619,7 @@ configuration["environments"].each do |environment,data|
         `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
       end
     end
-    droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{configuration["company"]["name"]}-#{environment}-redhat-mysql" }
+    droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{configuration["company"]["name"].downcase}-#{environment}-redhat-mysql" }
     unless droplet == nil
       unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] == droplet["networks"]["v4"].first["ip_address"]
         configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] = droplet["networks"]["v4"].first["ip_address"]
@@ -674,6 +688,8 @@ configuration["websites"].each do |service,data|
           # errorCode 14 => The URL is not resolved.
           elsif api_monitorus_monitor_http["errorCode"].to_f == 14
             puts "   - Could not add the monitor.us http monitor. The URL does not resolve."
+          elsif api_monitorus_monitor_http["error"].include?("out of limit")
+            puts "   - monitor.us api limit of 1000 requests per hour has been hit, skipping for now."
           else
             catapult_exception("Unable to configure monitor.us http monitor for websites => #{service} => domain => #{instance["domain"]}.")
           end
@@ -702,6 +718,8 @@ configuration["websites"].each do |service,data|
           # errorCode 14 => The URL is not resolved.
           elsif api_monitorus_monitor_https["errorCode"].to_f == 14
             puts "   - Could not add the monitor.us https monitor. The URL does not resolve."
+          elsif api_monitorus_monitor_https["error"].include?("out of limit")
+            puts "   - monitor.us api limit of 1000 requests per hour has been hit, skipping for now."
           else
             catapult_exception("Unable to configure monitor.us https monitor for websites => #{service} => domain => #{instance["domain"]}.")
           end
@@ -832,10 +850,14 @@ configuration["websites"].each do |service,data|
           response = http.request request # Net::HTTPResponse object
           api_bitbucket_repo_branches = JSON.parse(response.body)
           @api_bitbucket_repo_develop = false
+          @api_bitbucket_repo_release = false
           @api_bitbucket_repo_master = false
           api_bitbucket_repo_branches.each do |branch, array|
             if branch == "develop"
               @api_bitbucket_repo_develop = true
+            end
+            if branch == "release"
+              @api_bitbucket_repo_release = true
             end
             if branch == "master"
               @api_bitbucket_repo_master = true
@@ -845,6 +867,11 @@ configuration["websites"].each do |service,data|
             catapult_exception("Cannot find the develop branch for this repository, please create one.")
           else
             puts "   - Found the develop branch."
+          end
+          unless @api_bitbucket_repo_release
+            catapult_exception("Cannot find the release branch for this repository, please create one.")
+          else
+            puts "   - Found the release branch."
           end
           unless @api_bitbucket_repo_master
             catapult_exception("Cannot find the master branch for this repository, please create one.")
@@ -861,10 +888,14 @@ configuration["websites"].each do |service,data|
           response = http.request request # Net::HTTPResponse object
           api_github_repo_branches = JSON.parse(response.body)
           @api_github_repo_develop = false
+          @api_github_repo_release = false
           @api_github_repo_master = false
           api_github_repo_branches.each do |branch|
             if branch["name"] == "develop"
               @api_github_repo_develop = true
+            end
+            if branch["name"] == "release"
+              @api_github_repo_release = true
             end
             if branch["name"] == "master"
               @api_github_repo_master = true
@@ -874,6 +905,11 @@ configuration["websites"].each do |service,data|
             catapult_exception("Cannot find the develop branch for this repository, please create one.")
           else
             puts "   - Found the develop branch."
+          end
+          unless @api_github_repo_release
+            catapult_exception("Cannot find the release branch for this repository, please create one.")
+          else
+            puts "   - Found the release branch."
           end
           unless @api_github_repo_master
             catapult_exception("Cannot find the master branch for this repository, please create one.")
