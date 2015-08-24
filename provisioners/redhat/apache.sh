@@ -37,7 +37,6 @@ end=$(date +%s)
 echo "==> completed in ($(($end - $start)) seconds)"
 
 
-
 echo -e "\n\n==> Configuring time"
 start=$(date +%s)
 source /catapult/provisioners/redhat/modules/time.sh
@@ -61,23 +60,9 @@ end=$(date +%s)
 echo "==> completed in ($(($end - $start)) seconds)"
 
 
-echo -e "\n\n==> Installing Drush and WP-CLI"
+echo -e "\n\n==> Installing stoftware tools"
 start=$(date +%s)
-sudo yum install -y php-cli
-sudo yum install -y php-mysql
-sudo yum install -y mariadb
-# install drush
-if [ ! -f /usr/bin/drush  ]; then
-    curl -sS https://getcomposer.org/installer | php
-    mv composer.phar /usr/local/bin/composer
-    ln -s /usr/local/bin/composer /usr/bin/composer
-    git clone https://github.com/drush-ops/drush.git /usr/local/src/drush
-    cd /usr/local/src/drush
-    git checkout 7.0.0-rc1
-    ln -s /usr/local/src/drush/drush /usr/bin/drush
-    composer install
-fi
-drush --version
+source /catapult/provisioners/redhat/modules/software_tools.sh
 end=$(date +%s)
 echo "==> completed in ($(($end - $start)) seconds)"
 
@@ -162,6 +147,7 @@ while IFS='' read -r -d '' key; do
     fi
     domainvaliddbname=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " " | tr "." "_")
     force_auth=$(echo "$key" | grep -w "force_auth" | cut -d ":" -f 2 | tr -d " ")
+    force_auth_exclude=$(echo "$key" | grep -w "force_auth_exclude" | tr -d " ")
     force_https=$(echo "$key" | grep -w "force_https" | cut -d ":" -f 2 | tr -d " ")
     software=$(echo "$key" | grep -w "software" | cut -d ":" -f 2 | tr -d " ")
     software_dbprefix=$(echo "$key" | grep -w "software_dbprefix" | cut -d ":" -f 2 | tr -d " ")
@@ -498,16 +484,33 @@ while IFS='' read -r -d '' key; do
         ServerAlias www.${domain_environment}.${domain_tld_override}"
     fi
     # handle the force_auth option
-    if ([ ! -z "${force_auth}" ]) && ([ "$1" = "test" ] || [ "$1" = "qc" ]); then
-        sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth}
-        force_auth_value="<Location />
-            # Force HTTP authentication
-            AuthType Basic
-            AuthName \"Authentication Required\"
-            AuthUserFile \"/etc/httpd/sites-enabled/${domain_environment}.htpasswd\"
-            Require valid-user
-        </Location>"
+    if ([ ! -z "${force_auth}" ]) && ([ "$1" = "test" ] || [ "$1" = "qc" ] || [ "$1" = "production" ]); then
+        if ([ ! -z "${force_auth_exclude}" ]); then
+            force_auth_excludes=( $(echo "${key}" | shyaml get-values force_auth_exclude) )
+            if ([[ "${force_auth_excludes[@]}" =~ "$1" ]]); then
+                force_auth_value=""
+            else
+                sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t\t/"
+                force_auth_value="<Location />
+                    # Force HTTP authentication
+                    AuthType Basic
+                    AuthName \"Authentication Required\"
+                    AuthUserFile \"/etc/httpd/sites-enabled/${domain_environment}.htpasswd\"
+                    Require valid-user
+                </Location>"
+            fi
+        else
+            sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t\t/"
+            force_auth_value="<Location />
+                # Force HTTP authentication
+                AuthType Basic
+                AuthName \"Authentication Required\"
+                AuthUserFile \"/etc/httpd/sites-enabled/${domain_environment}.htpasswd\"
+                Require valid-user
+            </Location>"
+        fi
     else
+        # never force_auth in dev
         force_auth_value=""
     fi
     # handle the force_https option
@@ -582,15 +585,15 @@ EOF
         cd "/var/www/repositories/apache/${domain}/${webroot}" && drush pm-updatestatus --format=table 2>&1 | sed "s/^/\t\t\t/"
     elif [ "$software" = "wordpress" ]; then
         echo "$software core version:" | sed "s/^/\t\t/"
-        php /catapult/provisioners/redhat/installers/wp-cli.phar --path="/var/www/repositories/apache/${domain}/${webroot}" core version 2>&1 | sed "s/^/\t\t\t/"
+        php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" core version 2>&1 | sed "s/^/\t\t\t/"
         echo "$software core verify-checksums:" | sed "s/^/\t\t/"
-        php /catapult/provisioners/redhat/installers/wp-cli.phar --path="/var/www/repositories/apache/${domain}/${webroot}" core verify-checksums 2>&1 | sed "s/^/\t\t\t/"
+        php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" core verify-checksums 2>&1 | sed "s/^/\t\t\t/"
         echo "$software core check-update:" | sed "s/^/\t\t/"
-        php /catapult/provisioners/redhat/installers/wp-cli.phar --path="/var/www/repositories/apache/${domain}/${webroot}" core check-update 2>&1 | sed "s/^/\t\t\t/"
+        php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" core check-update 2>&1 | sed "s/^/\t\t\t/"
         echo "$software plugin list:" | sed "s/^/\t\t/"
-        php /catapult/provisioners/redhat/installers/wp-cli.phar --path="/var/www/repositories/apache/${domain}/${webroot}" plugin list 2>&1 | sed "s/^/\t\t\t/"
+        php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" plugin list 2>&1 | sed "s/^/\t\t\t/"
         echo "$software theme list:" | sed "s/^/\t\t/"
-        php /catapult/provisioners/redhat/installers/wp-cli.phar --path="/var/www/repositories/apache/${domain}/${webroot}" theme list 2>&1 | sed "s/^/\t\t\t/"
+        php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" theme list 2>&1 | sed "s/^/\t\t\t/"
     fi
 
 done
