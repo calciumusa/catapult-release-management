@@ -162,6 +162,16 @@ else
   end
   # checkout original branch
   `#{@git} checkout #{branch}`
+  # if on the release or master branch, stop user
+  if "#{branch}" == "release" || "#{branch}" == "master"
+    catapult_exception(""\
+      "You are on the #{branch} branch, all interaction should be done from either the develop or develop-catapult branch."\
+      " * The develop branch is running in test"\
+      " * The release branch is running in qc"\
+      " * The master branch is running in production"\
+      "To move your configuration from environment to environment, create pull requests (develop => release, release => master)."\
+    "")
+  end
 end
 # create a git pre-commit hook to ensure no configuration is committed to develop-catapult
 FileUtils.mkdir_p(".git/hooks")
@@ -312,14 +322,6 @@ elsif "#{branch}" == "develop"
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa --decrypt secrets/id_rsa.gpg`
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa.pub --decrypt secrets/id_rsa.pub.gpg`
   end
-elsif "#{branch}" == "release"
-  puts " * You are on the release branch, this branch contains your unique secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg secrets/configuration."
-  puts " * The release branch is running in the qc environment, please first test then commit your configuration to the develop branch."
-  puts " * Once you're satisified with your new configuration in localdev and test, create a pull request from develop into release."
-elsif "#{branch}" == "master"
-  puts " * You are on the master branch, this branch contains your unique secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg secrets/configuration."
-  puts " * The master branch is running in the production environment, please first test then commit your configuration to the develop branch."
-  puts " * Once you're satisified with your new configuration in localdev and test, create a pull request from develop into release."
 end
 # create objects from secrets/configuration.yml.gpg and secrets/configuration.yml.template
 configuration = YAML.load(`gpg --batch --passphrase "#{configuration_user["settings"]["gpg_key"]}" --decrypt secrets/configuration.yml.gpg`)
@@ -1068,7 +1070,7 @@ if ["status"].include?(ARGV[0])
   puts "\n[cert signature algorithm]"
   puts " * https://www.openssl.org/docs/apps/ciphers.html"
   puts "\nAvailable websites:".color(Colors::WHITE)
-  puts "".ljust(30) + "[software]".ljust(15) + "[dev.]".ljust(22) + "[test.]".ljust(22) + "[qc.]".ljust(22) + "[production / cert expiry, signature algorithm, common name]".ljust(80) + "[alexa rank, 3m delta]".ljust(26)
+  puts "".ljust(40) + "[software]".ljust(15) + "[dev.]".ljust(22) + "[test.]".ljust(22) + "[qc.]".ljust(22) + "[production / cert expiry, signature algorithm, common name]".ljust(80) + "[alexa rank, 3m delta]".ljust(26)
 
   configuration["websites"].each do |service,data|
     unless configuration["websites"]["#{service}"] == nil
@@ -1080,9 +1082,9 @@ if ["status"].include?(ARGV[0])
         row = Array.new
         # get domain name
         if instance["domain_tld_override"] == nil
-          row.push(" * #{instance["domain"]}".ljust(29))
+          row.push(" * #{instance["domain"]}".ljust(39))
         else
-          row.push(" * #{instance["domain"]}.#{instance["domain_tld_override"]}".ljust(29))
+          row.push(" * #{instance["domain"]}.#{instance["domain_tld_override"]}".ljust(39))
         end
         # get software
         row.push((instance["software"] || "").ljust(14))
