@@ -144,6 +144,7 @@ else
         `#{@git} checkout -- secrets/id_rsa.pub.gpg`
       end
       `#{@git} checkout #{branch}`
+      `#{@git} pull origin #{branch}`
       `#{@git} pull upstream master`
       `#{@git} push origin #{branch}`
     else
@@ -162,6 +163,16 @@ else
   end
   # checkout original branch
   `#{@git} checkout #{branch}`
+  # if on the release or master branch, stop user
+  if "#{branch}" == "release" || "#{branch}" == "master"
+    catapult_exception(""\
+      "You are on the #{branch} branch, all interaction should be done from either the develop or develop-catapult branch."\
+      " * The develop branch is running in test"\
+      " * The release branch is running in qc"\
+      " * The master branch is running in production"\
+      "To move your configuration from environment to environment, create pull requests (develop => release, release => master)."\
+    "")
+  end
 end
 # create a git pre-commit hook to ensure no configuration is committed to develop-catapult
 FileUtils.mkdir_p(".git/hooks")
@@ -312,14 +323,6 @@ elsif "#{branch}" == "develop"
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa --decrypt secrets/id_rsa.gpg`
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa.pub --decrypt secrets/id_rsa.pub.gpg`
   end
-elsif "#{branch}" == "release"
-  puts " * You are on the release branch, this branch contains your unique secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg secrets/configuration."
-  puts " * The release branch is running in the qc environment, please first test then commit your configuration to the develop branch."
-  puts " * Once you're satisified with your new configuration in localdev and test, create a pull request from develop into release."
-elsif "#{branch}" == "master"
-  puts " * You are on the master branch, this branch contains your unique secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg secrets/configuration."
-  puts " * The master branch is running in the production environment, please first test then commit your configuration to the develop branch."
-  puts " * Once you're satisified with your new configuration in localdev and test, create a pull request from develop into release."
 end
 # create objects from secrets/configuration.yml.gpg and secrets/configuration.yml.template
 configuration = YAML.load(`gpg --batch --passphrase "#{configuration_user["settings"]["gpg_key"]}" --decrypt secrets/configuration.yml.gpg`)
@@ -352,8 +355,10 @@ else
     request = Net::HTTP::Get.new uri.request_uri
     request.add_field "Authorization", "Bearer #{configuration["company"]["digitalocean_personal_access_token"]}"
     response = http.request request
-    if response.code.to_f.between?(399,600)
+    if response.code.to_f.between?(399,499)
       catapult_exception("The DigitalOcean API could not authenticate, please verify [\"company\"][\"digitalocean_personal_access_token\"].")
+    elsif response.code.to_f.between?(500,600)
+      puts "   - The DigitalOcean API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
     else
       puts " * DigitalOcean API authenticated successfully."
       @api_digitalocean = JSON.parse(response.body)
@@ -396,8 +401,10 @@ else
     request = Net::HTTP::Get.new uri.request_uri
     request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
     response = http.request request
-    if response.code.to_f.between?(399,600)
+    if response.code.to_f.between?(399,499)
       catapult_exception("The Bitbucket API could not authenticate, please verify [\"company\"][\"bitbucket_username\"] and [\"company\"][\"bitbucket_password\"].")
+    elsif response.code.to_f.between?(500,600)
+      puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
     else
       puts " * Bitbucket API authenticated successfully."
       @api_bitbucket = JSON.parse(response.body)
@@ -443,8 +450,10 @@ else
     request = Net::HTTP::Get.new uri.request_uri
     request.basic_auth "#{configuration["company"]["github_username"]}", "#{configuration["company"]["github_password"]}"
     response = http.request request
-    if response.code.to_f.between?(399,600)
+    if response.code.to_f.between?(399,499)
       catapult_exception("The GitHub API could not authenticate, please verify [\"company\"][\"github_username\"] and [\"company\"][\"github_password\"].")
+    elsif response.code.to_f.between?(500,600)
+      puts "   - The GitHub API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
     else
       puts " * GitHub API authenticated successfully."
       @api_github = JSON.parse(response.body)
@@ -490,8 +499,10 @@ else
     request = Net::HTTP::Get.new uri.request_uri
     request.basic_auth "#{configuration["company"]["bamboo_username"]}", "#{configuration["company"]["bamboo_password"]}"
     response = http.request request
-    if response.code.to_f.between?(399,600)
+    if response.code.to_f.between?(399,499)
       catapult_exception("The Bamboo API could not authenticate, please verify [\"company\"][\"bamboo_base_url\"] and [\"company\"][\"bamboo_username\"] and [\"company\"][\"bamboo_password\"].")
+    elsif response.code.to_f.between?(500,600)
+      puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
     else
       puts " * Bamboo API authenticated successfully."
       @api_bamboo = JSON.parse(response.body)
@@ -511,8 +522,10 @@ else
       request = Net::HTTP::Get.new uri.request_uri
       request.basic_auth "#{configuration["company"]["bamboo_username"]}", "#{configuration["company"]["bamboo_password"]}"
       response = http.request request
-      if response.code.to_f.between?(399,600)
+      if response.code.to_f.between?(399,499)
         catapult_exception("Could not find the plan key \"TEST\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult-release-management#services-setup")
+      elsif response.code.to_f.between?(500,600)
+        puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
       else
         puts "   - Found the plan key \"TEST\""
       end
@@ -522,8 +535,10 @@ else
       request = Net::HTTP::Get.new uri.request_uri
       request.basic_auth "#{configuration["company"]["bamboo_username"]}", "#{configuration["company"]["bamboo_password"]}"
       response = http.request request
-      if response.code.to_f.between?(399,600)
+      if response.code.to_f.between?(399,499)
         catapult_exception("Could not find the plan key \"QC\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult-release-management#services-setup")
+      elsif response.code.to_f.between?(500,600)
+        puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
       else
         puts "   - Found the plan key \"QC\""
       end
@@ -533,8 +548,10 @@ else
       request = Net::HTTP::Get.new uri.request_uri
       request.basic_auth "#{configuration["company"]["bamboo_username"]}", "#{configuration["company"]["bamboo_password"]}"
       response = http.request request
-      if response.code.to_f.between?(399,600)
+      if response.code.to_f.between?(399,499)
         catapult_exception("Could not find the plan key \"PROD\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult-release-management#services-setup")
+      elsif response.code.to_f.between?(500,600)
+        puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
       else
         puts "   - Found the plan key \"PROD\""
       end
@@ -551,8 +568,10 @@ else
     request.add_field "X-Auth-Key", "#{configuration["company"]["cloudflare_api_key"]}"
     request.add_field "X-Auth-Email", "#{configuration["company"]["cloudflare_email"]}"
     response = http.request request
-    if response.code.to_f.between?(399,600)
+    if response.code.to_f.between?(399,499)
       catapult_exception("The CloudFlare API could not authenticate, please verify [\"company\"][\"cloudflare_api_key\"] and [\"company\"][\"cloudflare_email\"].")
+    elsif response.code.to_f.between?(500,600)
+      puts "   - The CloudFlare API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
     else
       puts " * CloudFlare API authenticated successfully."
       @api_cloudflare = JSON.parse(response.body)
@@ -567,8 +586,10 @@ else
     Net::HTTP.start(uri.host, uri.port) do |http|
       request = Net::HTTP::Get.new uri.request_uri
       response = http.request request # Net::HTTPResponse object
-      if response.code.to_f.between?(399,600)
+      if response.code.to_f.between?(399,499)
         catapult_exception("The monitor.us API could not authenticate, please verify [\"company\"][\"monitorus_api_key\"] and [\"company\"][\"monitorus_secret_key\"].")
+      elsif response.code.to_f.between?(500,600)
+        puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
       else
         @api_monitorus = JSON.parse(response.body)
         if @api_monitorus["error"]
@@ -582,8 +603,93 @@ else
     end
 end
 puts "\nVerification of configuration[\"environments\"]:\n".color(Colors::WHITE)
+# get full list of available digitalocean slugs to validate against
+uri = URI("https://api.digitalocean.com/v2/sizes")
+Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
+  request = Net::HTTP::Get.new uri.request_uri
+  request.add_field "Authorization", "Bearer #{configuration["company"]["digitalocean_personal_access_token"]}"
+  response = http.request request
+  if response.code.to_f.between?(399,499)
+    catapult_exception("The DigitalOcean API could not authenticate, please verify [\"company\"][\"digitalocean_personal_access_token\"].")
+  elsif response.code.to_f.between?(500,600)
+    puts "   - The DigitalOcean API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+  else
+    api_digitalocean_sizes = JSON.parse(response.body)
+    @api_digitalocean_slugs = Array.new
+    api_digitalocean_sizes["sizes"].each do |size|
+      @api_digitalocean_slugs.push("#{size["slug"]}")
+    end
+  end
+end
 # validate configuration["environments"]
 configuration["environments"].each do |environment,data|
+  #validate digitalocean droplets
+  unless "#{environment}" == "dev"
+
+    # redhat droplet
+    droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{configuration["company"]["name"].downcase}-#{environment}-redhat" }
+    # if redhat digitalocean droplet has been created
+    if droplet != nil
+      puts " * DigitalOcean droplet #{configuration["company"]["name"].downcase}-#{environment}-redhat_mysql has been found."
+      puts "   - status: #{droplet["status"]}, memory: #{droplet["size"]["memory"]}, vcpus: #{droplet["size"]["vcpus"]}, disk: #{droplet["size"]["disk"]}, $/month: $#{droplet["size"]["price_monthly"]}"
+      puts "   - created: #{droplet["created_at"]}, slug: #{droplet["size"]["slug"]}, region: #{droplet["region"]["name"]}, kernel: #{droplet["kernel"]["name"]}"
+      puts "   - ipv4: #{droplet["networks"]["v4"].first["ip_address"]}, ipv6: #{droplet["networks"]["v6"].first["ip_address"]}"
+      # get ip address and write to secrets/configuration.yml
+      unless configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] == droplet["networks"]["v4"].first["ip_address"]
+        configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] = droplet["networks"]["v4"].first["ip_address"]
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+      # get slug and write to secrets/configuration.yml
+      unless configuration["environments"]["#{environment}"]["servers"]["redhat"]["slug"] == droplet["size"]["slug"]
+        configuration["environments"]["#{environment}"]["servers"]["redhat"]["slug"] = droplet["size"]["slug"]
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+    # if redhat digitalocean droplet has NOT been created
+    elsif configuration["environments"]["#{environment}"]["servers"]["redhat"]["slug"] == nil
+      catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => redhat is empty and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
+    elsif not @api_digitalocean_slugs.include?("#{configuration["environments"]["#{environment}"]["servers"]["redhat"]["slug"]}")
+      catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => redhat is invalid and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
+    else
+      puts " * DigitalOcean droplet #{configuration["company"]["name"].downcase}-#{environment}-redhat has not been create, please vagrant up #{configuration["company"]["name"].downcase}-#{environment}-redhat"
+    end
+
+    # redhat_mysql droplet
+    droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{configuration["company"]["name"].downcase}-#{environment}-redhat-mysql" }
+    # if redhat_mysql digitalocean droplet has been created
+    if droplet != nil
+      puts " * DigitalOcean droplet #{configuration["company"]["name"].downcase}-#{environment}-redhat_mysql has been found."
+      puts "   - status: #{droplet["status"]}, memory: #{droplet["size"]["memory"]}, vcpus: #{droplet["size"]["vcpus"]}, disk: #{droplet["size"]["disk"]}, $/month: $#{droplet["size"]["price_monthly"]}"
+      puts "   - created: #{droplet["created_at"]}, slug: #{droplet["size"]["slug"]}, region: #{droplet["region"]["name"]}, kernel: #{droplet["kernel"]["name"]}"
+      puts "   - ipv4: #{droplet["networks"]["v4"].first["ip_address"]}, ipv6: #{droplet["networks"]["v6"].first["ip_address"]}"
+      # get ip address and write to secrets/configuration.yml
+      unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] == droplet["networks"]["v4"].first["ip_address"]
+        configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] = droplet["networks"]["v4"].first["ip_address"]
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+      # get slug and write to secrets/configuration.yml
+      unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["slug"] == droplet["size"]["slug"]
+        configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["slug"] = droplet["size"]["slug"]
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+    # if redhat_mysql digitalocean droplet has NOT been created
+    elsif configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["slug"] == nil
+      catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => redhat_mysql is empty and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
+    elsif not @api_digitalocean_slugs.include?("#{configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["slug"]}")
+      catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => redhat_mysql is invalid and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
+    else
+      puts " * DigitalOcean droplet #{configuration["company"]["name"].downcase}-#{environment}-redhat_mysql has not been create, please vagrant up #{configuration["company"]["name"].downcase}-#{environment}-redhat_mysql"
+    end
+  
+  end
+  # if server passwords do not exist, create them
   unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"]
     configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"] = SecureRandom.urlsafe_base64(16)
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
@@ -608,29 +714,7 @@ configuration["environments"].each do |environment,data|
     File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
   end
-  # if upstream digitalocean droplets are provisioned, get their ip addresses to write to secrets/configuration.yml
-  unless environment == "dev"
-    droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{configuration["company"]["name"].downcase}-#{environment}-redhat" }
-    unless droplet == nil
-      unless configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] == droplet["networks"]["v4"].first["ip_address"]
-        configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] = droplet["networks"]["v4"].first["ip_address"]
-        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
-        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
-      end
-    end
-    droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{configuration["company"]["name"].downcase}-#{environment}-redhat-mysql" }
-    unless droplet == nil
-      unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] == droplet["networks"]["v4"].first["ip_address"]
-        configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] = droplet["networks"]["v4"].first["ip_address"]
-        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
-        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
-      end
-    end
-  end
 end
-puts " [verification complete]"
 puts "\nVerification of configuration[\"websites\"]:\n".color(Colors::WHITE)
 # add catapult temporarily to verify repo and add bamboo services
 configuration["websites"]["catapult"] = *(["domain" => "#{repo}", "repo" => "#{repo}"])
@@ -681,17 +765,21 @@ configuration["websites"].each do |service,data|
               "&url=#{instance["domain"]}"\
             "")
           response = http.request request # Net::HTTPResponse object
-          api_monitorus_monitor_http = JSON.parse(response.body)
-          # errorCode 11 => monitorUrlExists
-          if api_monitorus_monitor_http["status"] == "ok" || api_monitorus_monitor_http["errorCode"].to_f == 11
-            puts "   - Configured monitor.us http monitor."
-          # errorCode 14 => The URL is not resolved.
-          elsif api_monitorus_monitor_http["errorCode"].to_f == 14
-            puts "   - Could not add the monitor.us http monitor. The URL does not resolve."
-          elsif api_monitorus_monitor_http["error"].include?("out of limit")
-            puts "   - monitor.us api limit of 1000 requests per hour has been hit, skipping for now."
+          if response.code.to_f.between?(399,600)
+            puts "   - The monitor.us API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
           else
-            catapult_exception("Unable to configure monitor.us http monitor for websites => #{service} => domain => #{instance["domain"]}.")
+            api_monitorus_monitor_http = JSON.parse(response.body)
+            # errorCode 11 => monitorUrlExists
+            if api_monitorus_monitor_http["status"] == "ok" || api_monitorus_monitor_http["errorCode"].to_f == 11
+              puts "   - Configured monitor.us http monitor."
+            # errorCode 14 => The URL is not resolved.
+            elsif api_monitorus_monitor_http["errorCode"].to_f == 14
+              puts "   - Could not add the monitor.us http monitor. The URL does not resolve."
+            elsif api_monitorus_monitor_http["error"].include?("out of limit")
+              puts "   - monitor.us api limit of 1000 requests per hour has been hit, skipping for now."
+            else
+              catapult_exception("Unable to configure monitor.us http monitor for websites => #{service} => domain => #{instance["domain"]}.")
+            end
           end
         end
         uri = URI("http://monitor.us/api")
@@ -711,18 +799,34 @@ configuration["websites"].each do |service,data|
               "&url=#{instance["domain"]}"\
             "")
           response = http.request request # Net::HTTPResponse object
-          api_monitorus_monitor_https = JSON.parse(response.body)
-          # errorCode 11 => monitorUrlExists
-          if api_monitorus_monitor_https["status"] == "ok" || api_monitorus_monitor_https["errorCode"].to_f == 11
-            puts "   - Configured monitor.us https monitor."
-          # errorCode 14 => The URL is not resolved.
-          elsif api_monitorus_monitor_https["errorCode"].to_f == 14
-            puts "   - Could not add the monitor.us https monitor. The URL does not resolve."
-          elsif api_monitorus_monitor_https["error"].include?("out of limit")
-            puts "   - monitor.us api limit of 1000 requests per hour has been hit, skipping for now."
+          if response.code.to_f.between?(399,600)
+            puts "   - The monitor.us API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
           else
-            catapult_exception("Unable to configure monitor.us https monitor for websites => #{service} => domain => #{instance["domain"]}.")
+            api_monitorus_monitor_https = JSON.parse(response.body)
+            # errorCode 11 => monitorUrlExists
+            if api_monitorus_monitor_https["status"] == "ok" || api_monitorus_monitor_https["errorCode"].to_f == 11
+              puts "   - Configured monitor.us https monitor."
+            # errorCode 14 => The URL is not resolved.
+            elsif api_monitorus_monitor_https["errorCode"].to_f == 14
+              puts "   - Could not add the monitor.us https monitor. The URL does not resolve."
+            elsif api_monitorus_monitor_https["error"].include?("out of limit")
+              puts "   - monitor.us api limit of 1000 requests per hour has been hit, skipping for now."
+            else
+              catapult_exception("Unable to configure monitor.us https monitor for websites => #{service} => domain => #{instance["domain"]}.")
+            end
           end
+        end
+      end
+      # validate force_auth_exclude
+      unless instance["force_auth_exclude"] == nil
+        @force_auth_exclude_valid_values = true
+        instance["force_auth_exclude"].each do |value|
+          if not ["test","qc","production"].include?("#{value}")
+            @force_auth_exclude_valid_values = false
+          end
+        end
+        unless @force_auth_exclude_valid_values
+          catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth_exclude for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only include one, some, or all of the following [\"test\",\"qc\",\"production\"].")
         end
       end
       # validate force_https
@@ -785,10 +889,14 @@ configuration["websites"].each do |service,data|
           request = Net::HTTP::Get.new uri.request_uri
           request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
           response = http.request request # Net::HTTPResponse object
-          api_bitbucket_repo_repositories = JSON.parse(response.body)
-          if response.code.to_f == 200
-            if api_bitbucket_repo_repositories["owner"]["username"] == "#{configuration["company"]["bitbucket_username"]}"
-              @api_bitbucket_repo_access = true
+          if response.code.to_f.between?(399,600)
+            @api_bitbucket_repo_access = 500
+          else
+            api_bitbucket_repo_repositories = JSON.parse(response.body)
+            if response.code.to_f == 200
+              if api_bitbucket_repo_repositories["owner"]["username"] == "#{configuration["company"]["bitbucket_username"]}"
+                @api_bitbucket_repo_access = true
+              end
             end
           end
         end
@@ -797,11 +905,15 @@ configuration["websites"].each do |service,data|
           request = Net::HTTP::Get.new uri.request_uri
           request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
           response = http.request request # Net::HTTPResponse object
-          api_bitbucket_repo_privileges = JSON.parse(response.body)
-          api_bitbucket_repo_privileges.each do |member|
-            if member["privilege"] == "admin" || member["privilege"] == "write"
-              if member["user"]["username"] == "#{configuration["company"]["bitbucket_username"]}"
-                @api_bitbucket_repo_access = true
+          if response.code.to_f.between?(399,600)
+            @api_bitbucket_repo_access = 500
+          else
+            api_bitbucket_repo_privileges = JSON.parse(response.body)
+            api_bitbucket_repo_privileges.each do |member|
+              if member["privilege"] == "admin" || member["privilege"] == "write"
+                if member["user"]["username"] == "#{configuration["company"]["bitbucket_username"]}"
+                  @api_bitbucket_repo_access = true
+                end
               end
             end
           end
@@ -811,20 +923,26 @@ configuration["websites"].each do |service,data|
           request = Net::HTTP::Get.new uri.request_uri
           request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
           response = http.request request # Net::HTTPResponse object
-          api_bitbucket_repo_group_privileges = JSON.parse(response.body)
-          api_bitbucket_repo_group_privileges.each do |group|
-            if group["privilege"] == "admin" || group["privilege"] == "write"
-              group["group"]["members"].each do |member|
-                if member["username"] == "#{configuration["company"]["bitbucket_username"]}"
-                  @api_bitbucket_repo_access = true
+          if response.code.to_f.between?(399,600)
+            @api_bitbucket_repo_access = 500
+          else
+            api_bitbucket_repo_group_privileges = JSON.parse(response.body)
+            api_bitbucket_repo_group_privileges.each do |group|
+              if group["privilege"] == "admin" || group["privilege"] == "write"
+                group["group"]["members"].each do |member|
+                  if member["username"] == "#{configuration["company"]["bitbucket_username"]}"
+                    @api_bitbucket_repo_access = true
+                  end
                 end
               end
             end
           end
         end
-        unless @api_bitbucket_repo_access
+        if @api_bitbucket_repo_access == 500
+            puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+        elsif @api_bitbucket_repo_access === false
           catapult_exception("Your Bitbucket user #{configuration["company"]["bitbucket_username"]} does not have write access to this repository.")
-        else
+        elsif @api_bitbucket_repo_access === true
           puts "   - Verified your Bitbucket user #{configuration["company"]["bitbucket_username"]} has write access."
         end
       end
@@ -834,10 +952,14 @@ configuration["websites"].each do |service,data|
           request = Net::HTTP::Get.new uri.request_uri
           request.basic_auth "#{configuration["company"]["github_username"]}", "#{configuration["company"]["github_password"]}"
           response = http.request request # Net::HTTPResponse object
-          if response.code.to_f == 204
-            puts "   - Verified your GitHub user #{configuration["company"]["github_username"]} has write access."
+          if response.code.to_f.between?(399,600)
+            puts "   - The GitHub API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
           else
-            catapult_exception("Your GitHub user #{configuration["company"]["github_username"]} does not have write access to this repository.")
+            if response.code.to_f == 204
+              puts "   - Verified your GitHub user #{configuration["company"]["github_username"]} has write access."
+            else
+              catapult_exception("Your GitHub user #{configuration["company"]["github_username"]} does not have write access to this repository.")
+            end
           end
         end
       end
@@ -848,35 +970,39 @@ configuration["websites"].each do |service,data|
           request = Net::HTTP::Get.new uri.request_uri
           request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
           response = http.request request # Net::HTTPResponse object
-          api_bitbucket_repo_branches = JSON.parse(response.body)
-          @api_bitbucket_repo_develop = false
-          @api_bitbucket_repo_release = false
-          @api_bitbucket_repo_master = false
-          api_bitbucket_repo_branches.each do |branch, array|
-            if branch == "develop"
-              @api_bitbucket_repo_develop = true
-            end
-            if branch == "release"
-              @api_bitbucket_repo_release = true
-            end
-            if branch == "master"
-              @api_bitbucket_repo_master = true
-            end
-          end
-          unless @api_bitbucket_repo_develop
-            catapult_exception("Cannot find the develop branch for this repository, please create one.")
+          if response.code.to_f.between?(399,600)
+            puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
           else
-            puts "   - Found the develop branch."
-          end
-          unless @api_bitbucket_repo_release
-            catapult_exception("Cannot find the release branch for this repository, please create one.")
-          else
-            puts "   - Found the release branch."
-          end
-          unless @api_bitbucket_repo_master
-            catapult_exception("Cannot find the master branch for this repository, please create one.")
-          else
-            puts "   - Found the master branch."
+            api_bitbucket_repo_branches = JSON.parse(response.body)
+            @api_bitbucket_repo_develop = false
+            @api_bitbucket_repo_release = false
+            @api_bitbucket_repo_master = false
+            api_bitbucket_repo_branches.each do |branch, array|
+              if branch == "develop"
+                @api_bitbucket_repo_develop = true
+              end
+              if branch == "release"
+                @api_bitbucket_repo_release = true
+              end
+              if branch == "master"
+                @api_bitbucket_repo_master = true
+              end
+            end
+            unless @api_bitbucket_repo_develop
+              catapult_exception("Cannot find the develop branch for this repository, please create one.")
+            else
+              puts "   - Found the develop branch."
+            end
+            unless @api_bitbucket_repo_release
+              catapult_exception("Cannot find the release branch for this repository, please create one.")
+            else
+              puts "   - Found the release branch."
+            end
+            unless @api_bitbucket_repo_master
+              catapult_exception("Cannot find the master branch for this repository, please create one.")
+            else
+              puts "   - Found the master branch."
+            end
           end
         end
       end
@@ -886,35 +1012,39 @@ configuration["websites"].each do |service,data|
           request = Net::HTTP::Get.new uri.request_uri
           request.basic_auth "#{configuration["company"]["github_username"]}", "#{configuration["company"]["github_password"]}"
           response = http.request request # Net::HTTPResponse object
-          api_github_repo_branches = JSON.parse(response.body)
-          @api_github_repo_develop = false
-          @api_github_repo_release = false
-          @api_github_repo_master = false
-          api_github_repo_branches.each do |branch|
-            if branch["name"] == "develop"
-              @api_github_repo_develop = true
-            end
-            if branch["name"] == "release"
-              @api_github_repo_release = true
-            end
-            if branch["name"] == "master"
-              @api_github_repo_master = true
-            end
-          end
-          unless @api_github_repo_develop
-            catapult_exception("Cannot find the develop branch for this repository, please create one.")
+          if response.code.to_f.between?(399,600)
+            puts "   - The GitHub API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
           else
-            puts "   - Found the develop branch."
-          end
-          unless @api_github_repo_release
-            catapult_exception("Cannot find the release branch for this repository, please create one.")
-          else
-            puts "   - Found the release branch."
-          end
-          unless @api_github_repo_master
-            catapult_exception("Cannot find the master branch for this repository, please create one.")
-          else
-            puts "   - Found the master branch."
+            api_github_repo_branches = JSON.parse(response.body)
+            @api_github_repo_develop = false
+            @api_github_repo_release = false
+            @api_github_repo_master = false
+            api_github_repo_branches.each do |branch|
+              if branch["name"] == "develop"
+                @api_github_repo_develop = true
+              end
+              if branch["name"] == "release"
+                @api_github_repo_release = true
+              end
+              if branch["name"] == "master"
+                @api_github_repo_master = true
+              end
+            end
+            unless @api_github_repo_develop
+              catapult_exception("Cannot find the develop branch for this repository, please create one.")
+            else
+              puts "   - Found the develop branch."
+            end
+            unless @api_github_repo_release
+              catapult_exception("Cannot find the release branch for this repository, please create one.")
+            else
+              puts "   - Found the release branch."
+            end
+            unless @api_github_repo_master
+              catapult_exception("Cannot find the master branch for this repository, please create one.")
+            else
+              puts "   - Found the master branch."
+            end
           end
         end
       end
@@ -926,58 +1056,62 @@ configuration["websites"].each do |service,data|
           request = Net::HTTP::Get.new uri.request_uri
           request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
           response = http.request request # Net::HTTPResponse object
-          api_bitbucket_services = JSON.parse(response.body)
-          @api_bitbucket_services_bamboo_cat_test = false
-          @api_bitbucket_services_bamboo_cat_qc = false
-          api_bitbucket_services.each do |service|
-            if service["service"]["type"] == "Bamboo"
-              service["service"]["fields"].each do |field|
-                if field["name"] == "Plan Key"
-                  if field["value"] == "CAT-TEST"
-                    @api_bitbucket_services_bamboo_cat_test = true
-                  end
-                  if field["value"] == "CAT-QC"
-                    @api_bitbucket_services_bamboo_cat_qc = true
+          if response.code.to_f.between?(399,600)
+            puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+          else
+            api_bitbucket_services = JSON.parse(response.body)
+            @api_bitbucket_services_bamboo_cat_test = false
+            @api_bitbucket_services_bamboo_cat_qc = false
+            api_bitbucket_services.each do |service|
+              if service["service"]["type"] == "Bamboo"
+                service["service"]["fields"].each do |field|
+                  if field["name"] == "Plan Key"
+                    if field["value"] == "CAT-TEST"
+                      @api_bitbucket_services_bamboo_cat_test = true
+                    end
+                    if field["value"] == "CAT-QC"
+                      @api_bitbucket_services_bamboo_cat_qc = true
+                    end
                   end
                 end
               end
             end
-          end
-          unless @api_bitbucket_services_bamboo_cat_test
-            uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/services")
-            Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
-              request = Net::HTTP::Post.new uri.request_uri
-              request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
-              request.body = URI::encode\
-                (""\
-                  "type=Bamboo"\
-                  "&URL=#{configuration["company"]["bamboo_base_url"]}"\
-                  "&Plan Key=CAT-TEST"\
-                  "&Username=#{configuration["company"]["bamboo_username"]}"\
-                  "&Password=#{configuration["company"]["bamboo_password"]}"\
-                "")
-              response = http.request request # Net::HTTPResponse object
-              if response.code.to_f.between?(399,600)
-                catapult_exception("Unable to configure Bitbucket Bamboo service for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
+            unless @api_bitbucket_services_bamboo_cat_test
+              uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/services")
+              Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
+                request = Net::HTTP::Post.new uri.request_uri
+                request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
+                request.body = URI::encode\
+                  (""\
+                    "type=Bamboo"\
+                    "&URL=#{configuration["company"]["bamboo_base_url"]}"\
+                    "&Plan Key=CAT-TEST"\
+                    "&Username=#{configuration["company"]["bamboo_username"]}"\
+                    "&Password=#{configuration["company"]["bamboo_password"]}"\
+                  "")
+                response = http.request request # Net::HTTPResponse object
+                if response.code.to_f.between?(399,600)
+                  catapult_exception("Unable to configure Bitbucket Bamboo service for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
+                end
               end
             end
-          end
-          unless @api_bitbucket_services_bamboo_cat_qc
-            uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/services")
-            Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
-              request = Net::HTTP::Post.new uri.request_uri
-              request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
-              request.body = URI::encode\
-                (""\
-                  "type=Bamboo"\
-                  "&URL=#{configuration["company"]["bamboo_base_url"]}"\
-                  "&Plan Key=CAT-QC"\
-                  "&Username=#{configuration["company"]["bamboo_username"]}"\
-                  "&Password=#{configuration["company"]["bamboo_password"]}"\
-                "")
-              response = http.request request # Net::HTTPResponse object
-              if response.code.to_f.between?(399,600)
-                catapult_exception("Unable to configure Bitbucket Bamboo service for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
+            unless @api_bitbucket_services_bamboo_cat_qc
+              uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/services")
+              Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
+                request = Net::HTTP::Post.new uri.request_uri
+                request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
+                request.body = URI::encode\
+                  (""\
+                    "type=Bamboo"\
+                    "&URL=#{configuration["company"]["bamboo_base_url"]}"\
+                    "&Plan Key=CAT-QC"\
+                    "&Username=#{configuration["company"]["bamboo_username"]}"\
+                    "&Password=#{configuration["company"]["bamboo_password"]}"\
+                  "")
+                response = http.request request # Net::HTTPResponse object
+                if response.code.to_f.between?(399,600)
+                  catapult_exception("Unable to configure Bitbucket Bamboo service for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
+                end
               end
             end
           end
@@ -996,13 +1130,15 @@ configuration["websites"].each do |service,data|
               "\"config\":"\
                 "{"\
                   "\"base_url\":\"#{configuration["company"]["bamboo_base_url"]}\","\
-                  "\"build_key\":\"develop:CAT-TEST,master:CAT-QC\","\
+                  "\"build_key\":\"develop:CAT-TEST,release:CAT-QC\","\
                   "\"username\":\"#{configuration["company"]["bamboo_username"]}\","\
                   "\"password\":\"#{configuration["company"]["bamboo_password"]}\""\
                 "}"\
             "}"
           response = http.request request # Net::HTTPResponse object
-          if response.code.to_f.between?(399,600)
+          if response.code.to_f.between?(500,600)
+            puts "   - The GitHub API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+          elsif response.code.to_f.between?(399,499)
             catapult_exception("Unable to configure GitHub Bamboo service for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
           end
         end
@@ -1010,7 +1146,7 @@ configuration["websites"].each do |service,data|
       puts "   - Configured Bamboo service for automated deployments."
       # validate software
       unless instance["software"] == nil
-        unless ["codeigniter2","drupal6","drupal7","wordpress","xenforo"].include?("#{instance["software"]}")
+        unless ["codeigniter2","drupal6","drupal7","silverstripe","wordpress","xenforo"].include?("#{instance["software"]}")
           catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be one of the following [\"codeigniter2\",\"drupal6\",\"drupal7\",\"wordpress\",\"xenforo\"].")
         end
         unless ["downstream","upstream"].include?("#{instance["software_workflow"]}")
@@ -1068,7 +1204,7 @@ if ["status"].include?(ARGV[0])
   puts "\n[cert signature algorithm]"
   puts " * https://www.openssl.org/docs/apps/ciphers.html"
   puts "\nAvailable websites:".color(Colors::WHITE)
-  puts "".ljust(30) + "[software]".ljust(15) + "[dev.]".ljust(22) + "[test.]".ljust(22) + "[qc.]".ljust(22) + "[production / cert expiry, signature algorithm, common name]".ljust(80) + "[alexa rank, 3m delta]".ljust(26)
+  puts "".ljust(40) + "[software]".ljust(15) + "[dev.]".ljust(22) + "[test.]".ljust(22) + "[qc.]".ljust(22) + "[production / cert expiry, signature algorithm, common name]".ljust(80) + "[alexa rank, 3m delta]".ljust(26)
 
   configuration["websites"].each do |service,data|
     unless configuration["websites"]["#{service}"] == nil
@@ -1080,9 +1216,9 @@ if ["status"].include?(ARGV[0])
         row = Array.new
         # get domain name
         if instance["domain_tld_override"] == nil
-          row.push(" * #{instance["domain"]}".ljust(29))
+          row.push(" * #{instance["domain"]}".ljust(39))
         else
-          row.push(" * #{instance["domain"]}.#{instance["domain_tld_override"]}".ljust(29))
+          row.push(" * #{instance["domain"]}.#{instance["domain_tld_override"]}".ljust(39))
         end
         # get software
         row.push((instance["software"] || "").ljust(14))
@@ -1268,7 +1404,7 @@ Vagrant.configure("2") do |config|
       provider.token = configuration["company"]["digitalocean_personal_access_token"]
       provider.image = "centos-7-0-x64"
       provider.region = "nyc3"
-      provider.size = "512mb"
+      provider.size = "#{configuration["environments"]["test"]["servers"]["redhat"]["slug"]}"
       provider.ipv6 = true
       provider.backups_enabled = true
     end
@@ -1283,7 +1419,7 @@ Vagrant.configure("2") do |config|
       provider.token = configuration["company"]["digitalocean_personal_access_token"]
       provider.image = "centos-7-0-x64"
       provider.region = "nyc3"
-      provider.size = "512mb"
+      provider.size = "#{configuration["environments"]["test"]["servers"]["redhat_mysql"]["slug"]}"
       provider.ipv6 = true
       provider.backups_enabled = true
     end
@@ -1300,7 +1436,7 @@ Vagrant.configure("2") do |config|
       provider.token = configuration["company"]["digitalocean_personal_access_token"]
       provider.image = "centos-7-0-x64"
       provider.region = "nyc3"
-      provider.size = "512mb"
+      provider.size = "#{configuration["environments"]["qc"]["servers"]["redhat"]["slug"]}"
       provider.ipv6 = true
       provider.backups_enabled = true
     end
@@ -1315,7 +1451,7 @@ Vagrant.configure("2") do |config|
       provider.token = configuration["company"]["digitalocean_personal_access_token"]
       provider.image = "centos-7-0-x64"
       provider.region = "nyc3"
-      provider.size = "512mb"
+      provider.size = "#{configuration["environments"]["qc"]["servers"]["redhat_mysql"]["slug"]}"
       provider.ipv6 = true
       provider.backups_enabled = true
     end
@@ -1332,7 +1468,7 @@ Vagrant.configure("2") do |config|
       provider.token = configuration["company"]["digitalocean_personal_access_token"]
       provider.image = "centos-7-0-x64"
       provider.region = "nyc3"
-      provider.size = "512mb"
+      provider.size = "#{configuration["environments"]["production"]["servers"]["redhat"]["slug"]}"
       provider.ipv6 = true
       provider.backups_enabled = true
     end
@@ -1347,7 +1483,7 @@ Vagrant.configure("2") do |config|
       provider.token = configuration["company"]["digitalocean_personal_access_token"]
       provider.image = "centos-7-0-x64"
       provider.region = "nyc3"
-      provider.size = "512mb"
+      provider.size = "#{configuration["environments"]["production"]["servers"]["redhat_mysql"]["slug"]}"
       provider.ipv6 = true
       provider.backups_enabled = true
     end
