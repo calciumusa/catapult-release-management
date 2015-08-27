@@ -60,7 +60,7 @@ end=$(date +%s)
 echo "==> completed in ($(($end - $start)) seconds)"
 
 
-echo -e "\n\n==> Installing stoftware tools"
+echo -e "\n\n==> Installing software tools"
 start=$(date +%s)
 source /catapult/provisioners/redhat/modules/software_tools.sh
 end=$(date +%s)
@@ -100,6 +100,13 @@ end=$(date +%s)
 echo "==> completed in ($(($end - $start)) seconds)"
 
 
+echo -e "\n\n==> Configuring CloudFlare"
+start=$(date +%s)
+source /catapult/provisioners/redhat/modules/cloudflare.sh
+end=$(date +%s)
+echo "==> completed in ($(($end - $start)) seconds)"
+
+
 echo -e "\n\n==> Configuring Apache"
 start=$(date +%s)
 # set variables from secrets/configuration.yml
@@ -109,8 +116,6 @@ mysql_root_password="$(echo "${configuration}" | shyaml get-value environments.$
 redhat_ip="$(echo "${configuration}" | shyaml get-value environments.$1.servers.redhat.ip)"
 redhat_mysql_ip="$(echo "${configuration}" | shyaml get-value environments.$1.servers.redhat_mysql.ip)"
 company_email="$(echo "${configuration}" | shyaml get-value company.email)"
-cloudflare_api_key="$(echo "${configuration}" | shyaml get-value company.cloudflare_api_key)"
-cloudflare_email="$(echo "${configuration}" | shyaml get-value company.cloudflare_email)"
 
 # configure vhosts
 # this is a debianism - but it makes things easier for cross-distro
@@ -161,316 +166,6 @@ while IFS='' read -r -d '' key; do
         echo -e "\nNOTICE: ${1}.${domain_root}"
     fi
 
-    # configure cloudflare dns
-    if [ "$1" != "dev" ]; then
-        echo -e "\t * configuring cloudflare dns"
-        IFS=. read -a domain_levels <<< "${domain_root}"
-        if [ "${#domain_levels[@]}" = "2" ]; then
-
-            # $domain_levels[0] => devopsgroup
-            # $domain_levels[1] => io
-
-            # determine if cloudflare zone exists
-            cloudflare_zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${domain_levels[0]}.${domain_levels[1]}"\
-            -H "X-Auth-Email: ${cloudflare_email}"\
-            -H "X-Auth-Key: ${cloudflare_api_key}"\
-            -H "Content-Type: application/json"\
-            | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"]')
-
-            if [ "${cloudflare_zone_id}" = "[]" ]; then
-                # create cloudflare zone
-                echo "cloudflare zone does not exist" | sed "s/^/\t\t/"
-                cloudflare_zone_id=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"name\":\"${domain_levels[0]}.${domain_levels[1]}\",\"jump_start\":false}"\
-                | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"]["id"]')
-                echo $cloudflare_zone_id | sed "s/^/\t\t/"
-            else
-                # get cloudflare zone
-                echo "cloudflare zone exists" | sed "s/^/\t\t/"
-                cloudflare_zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${domain_levels[0]}.${domain_levels[1]}"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"][0]["id"]')
-                echo $cloudflare_zone_id | sed "s/^/\t\t/"
-            fi
-
-            if [ "$1" = "production" ]; then
-                # set dns a record for environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"${domain_levels[0]}.${domain_levels[1]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-
-                # set dns a record for www.environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"www\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-            else
-                # set dns a record for environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"${1}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-
-                # set dns a record for www.environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"www.${1}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-            fi
-
-        elif [ "${#domain_levels[@]}" = "3" ]; then
-
-            # $domain_levels[0] => drupal7
-            # $domain_levels[1] => devopsgroup
-            # $domain_levels[2] => io
-
-            # determine if cloudflare zone exists
-            cloudflare_zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${domain_levels[1]}.${domain_levels[2]}"\
-            -H "X-Auth-Email: ${cloudflare_email}"\
-            -H "X-Auth-Key: ${cloudflare_api_key}"\
-            -H "Content-Type: application/json"\
-            | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"]')
-
-            if [ "${cloudflare_zone_id}" = "[]" ]; then
-                # create cloudflare zone
-                echo "cloudflare zone does not exist" | sed "s/^/\t\t/"
-                cloudflare_zone_id=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"name\":\"${domain_levels[1]}.${domain_levels[2]}\",\"jump_start\":false}"\
-                | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"]["id"]')
-                echo $cloudflare_zone_id | sed "s/^/\t\t/"
-            else
-                # get cloudflare zone
-                echo "cloudflare zone exists" | sed "s/^/\t\t/"
-                cloudflare_zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${domain_levels[1]}.${domain_levels[2]}"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"][0]["id"]')
-                echo $cloudflare_zone_id | sed "s/^/\t\t/"
-            fi
-
-            if [ "$1" = "production" ]; then
-                # set dns a record for environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"${domain_levels[0]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-
-                # set dns a record for www.environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"www.${domain_levels[0]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-            else
-                # set dns a record for environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"${1}.${domain_levels[0]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-
-                # set dns a record for www.environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"www.${1}.${domain_levels[0]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-            fi
-
-        elif [ "${#domain_levels[@]}" = "4" ]; then
-
-            # $domain_levels[0] => devopsgroup
-            # $domain_levels[1] => io
-            # $domain_levels[2] => safeway
-            # $domain_levels[3] => com
-
-            # determine if cloudflare zone exists
-            cloudflare_zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${domain_levels[2]}.${domain_levels[3]}"\
-            -H "X-Auth-Email: ${cloudflare_email}"\
-            -H "X-Auth-Key: ${cloudflare_api_key}"\
-            -H "Content-Type: application/json"\
-            | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"]')
-
-            if [ "${cloudflare_zone_id}" = "[]" ]; then
-                # create cloudflare zone
-                echo "cloudflare zone does not exist" | sed "s/^/\t\t/"
-                cloudflare_zone_id=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"name\":\"${domain_levels[2]}.${domain_levels[3]}\",\"jump_start\":false}"\
-                | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"]["id"]')
-                echo $cloudflare_zone_id | sed "s/^/\t\t/"
-            else
-                # get cloudflare zone
-                echo "cloudflare zone exists" | sed "s/^/\t\t/"
-                cloudflare_zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${domain_levels[2]}.${domain_levels[3]}"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"][0]["id"]')
-                echo $cloudflare_zone_id | sed "s/^/\t\t/"
-            fi
-
-            if [ "$1" = "production" ]; then
-                # set dns a record for environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"${domain_levels[0]}.${domain_levels[1]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-
-                # set dns a record for www.environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"www.${domain_levels[0]}.${domain_levels[1]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-            else
-                # set dns a record for environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"${1}.${domain_levels[0]}.${domain_levels[1]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-
-                # set dns a record for www.environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"www.${1}.${domain_levels[0]}.${domain_levels[1]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-            fi
-
-        elif [ "${#domain_levels[@]}" = "5" ]; then
-
-            # $domain_levels[0] => drupal7
-            # $domain_levels[1] => devopsgroup
-            # $domain_levels[2] => io
-            # $domain_levels[3] => safeway
-            # $domain_levels[4] => com
-
-            # determine if cloudflare zone exists
-            cloudflare_zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${domain_levels[3]}.${domain_levels[4]}"\
-            -H "X-Auth-Email: ${cloudflare_email}"\
-            -H "X-Auth-Key: ${cloudflare_api_key}"\
-            -H "Content-Type: application/json"\
-            | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"]')
-
-            if [ "${cloudflare_zone_id}" = "[]" ]; then
-                # create cloudflare zone
-                echo "cloudflare zone does not exist" | sed "s/^/\t\t/"
-                cloudflare_zone_id=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"name\":\"${domain_levels[3]}.${domain_levels[4]}\",\"jump_start\":false}"\
-                | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"]["id"]')
-                echo $cloudflare_zone_id | sed "s/^/\t\t/"
-            else
-                # get cloudflare zone
-                echo "cloudflare zone exists" | sed "s/^/\t\t/"
-                cloudflare_zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${domain_levels[3]}.${domain_levels[4]}"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["result"][0]["id"]')
-                echo $cloudflare_zone_id | sed "s/^/\t\t/"
-            fi
-
-            if [ "$1" = "production" ]; then
-                # set dns a record for environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"${domain_levels[0]}.${domain_levels[1]}.${domain_levels[2]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-
-                # set dns a record for www.environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"www.${domain_levels[0]}.${domain_levels[1]}.${domain_levels[2]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-            else
-                # set dns a record for environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"${1}.${domain_levels[0]}.${domain_levels[1]}.${domain_levels[2]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-
-                # set dns a record for www.environment
-                curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/dns_records"\
-                -H "X-Auth-Email: ${cloudflare_email}"\
-                -H "X-Auth-Key: ${cloudflare_api_key}"\
-                -H "Content-Type: application/json"\
-                --data "{\"type\":\"A\",\"name\":\"www.${1}.${domain_levels[0]}.${domain_levels[1]}.${domain_levels[2]}\",\"content\":\"${redhat_ip}\",\"ttl\":1,\"proxied\":true}"\
-                | sed "s/^/\t\t/"
-            fi
-
-        fi
-
-        # set cloudflare ssl setting per zone
-        curl -s -X PATCH "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/settings/ssl"\
-        -H "X-Auth-Email: ${cloudflare_email}"\
-        -H "X-Auth-Key: ${cloudflare_api_key}"\
-        -H "Content-Type: application/json"\
-        --data "{\"value\":\"full\"}"\
-        | sed "s/^/\t\t/"
-
-        # set cloudflare tls setting per zone
-        curl -s -X PATCH "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/settings/tls_client_auth"\
-        -H "X-Auth-Email: ${cloudflare_email}"\
-        -H "X-Auth-Key: ${cloudflare_api_key}"\
-        -H "Content-Type: application/json"\
-        --data "{\"value\":\"on\"}"\
-        | sed "s/^/\t\t/"
-
-        # purge cloudflare cache per zone
-        echo "clearing cloudflare cache" | sed "s/^/\t\t/"
-        curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/purge_cache"\
-        -H "X-Auth-Email: ${cloudflare_email}"\
-        -H "X-Auth-Key: ${cloudflare_api_key}"\
-        -H "Content-Type: application/json"\
-        --data "{\"purge_everything\":true}"\
-        | sed "s/^/\t\t/"
-
-        # throw a new line
-        echo -e "\n"
-
-    fi
-
     # configure vhost
     echo -e "\t * configuring vhost"
     sudo mkdir -p /var/log/httpd/${domain_environment}
@@ -490,7 +185,7 @@ while IFS='' read -r -d '' key; do
             if ([[ "${force_auth_excludes[@]}" =~ "$1" ]]); then
                 force_auth_value=""
             else
-                sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t\t/"
+                sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t/"
                 force_auth_value="<Location />
                     # Force HTTP authentication
                     AuthType Basic
@@ -500,7 +195,7 @@ while IFS='' read -r -d '' key; do
                 </Location>"
             fi
         else
-            sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t\t/"
+            sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t/"
             force_auth_value="<Location />
                 # Force HTTP authentication
                 AuthType Basic
@@ -568,32 +263,27 @@ EOF
     # enable vhost
     sudo ln -s /etc/httpd/sites-available/$domain_environment.conf /etc/httpd/sites-enabled/$domain_environment.conf
 
-    # configure software
-    if [ "$software" = "drupal6" ]; then
-        echo "$software core version:" | sed "s/^/\t\t/"
-        cd "/var/www/repositories/apache/${domain}/${webroot}" && drush core-status --field-labels=0 --fields=drupal-version 2>&1 | sed "s/^/\t\t\t/"
-        echo "$software core-requirements:" | sed "s/^/\t\t/"
-        cd "/var/www/repositories/apache/${domain}/${webroot}" && drush core-requirements --severity=2 --format=table 2>&1 | sed "s/^/\t\t\t/"
-        echo "$software pm-updatestatus:" | sed "s/^/\t\t/"
-        cd "/var/www/repositories/apache/${domain}/${webroot}" && drush pm-updatestatus --format=table 2>&1 | sed "s/^/\t\t\t/"
-    elif [ "$software" = "drupal7" ]; then
-        echo "$software core version:" | sed "s/^/\t\t/"
-        cd "/var/www/repositories/apache/${domain}/${webroot}" && drush core-status --field-labels=0 --fields=drupal-version 2>&1 | sed "s/^/\t\t\t/"
-        echo "$software core-requirements:" | sed "s/^/\t\t/"
-        cd "/var/www/repositories/apache/${domain}/${webroot}" && drush core-requirements --severity=2 --format=table 2>&1 | sed "s/^/\t\t\t/"
-        echo "$software pm-updatestatus:" | sed "s/^/\t\t/"
-        cd "/var/www/repositories/apache/${domain}/${webroot}" && drush pm-updatestatus --format=table 2>&1 | sed "s/^/\t\t\t/"
-    elif [ "$software" = "wordpress" ]; then
-        echo "$software core version:" | sed "s/^/\t\t/"
-        php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" core version 2>&1 | sed "s/^/\t\t\t/"
-        echo "$software core verify-checksums:" | sed "s/^/\t\t/"
-        php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" core verify-checksums 2>&1 | sed "s/^/\t\t\t/"
-        echo "$software core check-update:" | sed "s/^/\t\t/"
-        php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" core check-update 2>&1 | sed "s/^/\t\t\t/"
-        echo "$software plugin list:" | sed "s/^/\t\t/"
-        php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" plugin list 2>&1 | sed "s/^/\t\t\t/"
-        echo "$software theme list:" | sed "s/^/\t\t/"
-        php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" theme list 2>&1 | sed "s/^/\t\t\t/"
+    # set ownership of uploads directory in upstream servers
+    if [ "$1" != "dev" ]; then
+        if [ "$software" = "drupal6" ]; then
+            if [ -d "/var/www/repositories/apache/${domain}/${webroot}sites/default/files" ]; then
+                echo -e "\t * setting permissions for $software upload directory ~/sites/default/files"
+                sudo chown -R apache /var/www/repositories/apache/${domain}/${webroot}sites/default/files
+                sudo chmod -R 0700 /var/www/repositories/apache/${domain}/${webroot}sites/default/files
+            fi
+        elif [ "$software" = "drupal7" ]; then
+            if [ -d "/var/www/repositories/apache/${domain}/${webroot}sites/default/files" ]; then
+                echo -e "\t * setting permissions for $software upload directory ~/sites/default/files"
+                sudo chown -R apache /var/www/repositories/apache/${domain}/${webroot}sites/default/files
+                sudo chmod -R 0700 /var/www/repositories/apache/${domain}/${webroot}sites/default/files
+            fi
+        elif [ "$software" = "wordpress" ]; then
+            if [ -d "/var/www/repositories/apache/${domain}/${webroot}wp-content/uploads" ]; then
+                echo -e "\t * setting permissions for $software upload directory ~/wp-content/uploads"
+                sudo chown -R apache /var/www/repositories/apache/${domain}/${webroot}wp-content/uploads
+                sudo chmod -R 0700 /var/www/repositories/apache/${domain}/${webroot}wp-content/uploads
+            fi
+        fi
     fi
 
 done
