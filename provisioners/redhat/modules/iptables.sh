@@ -81,6 +81,4 @@ fi
 # now that everything is configured, we drop everything else (drop does not send any return packets, reject does)
 sudo iptables --policy INPUT DROP
 # output the iptables
-sudo iptables --list
-# persist the iptables rules and policies
-sudo /sbin/service iptables save
+sudo iptables --list-rules
