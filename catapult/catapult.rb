@@ -394,9 +394,18 @@ module Catapult
     end
     # create objects from secrets/configuration.yml.gpg and secrets/configuration.yml.template
     @configuration = YAML.load(`gpg --batch --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --decrypt secrets/configuration.yml.gpg`)
+    if $?.exitstatus > 0
+      catapult_exception("Your configuration could not be decrypted, please confirm your team's gpg_key is correct in secrets/configuration-user.yml")
+    end
     configuration_example = YAML.load_file("secrets/configuration.yml.template")
     `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa --decrypt secrets/id_rsa.gpg`
+    if $?.exitstatus > 0
+      catapult_exception("Your configuration could not be decrypted, please confirm your team's gpg_key is correct in secrets/configuration-user.yml")
+    end
     `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa.pub --decrypt secrets/id_rsa.pub.gpg`
+    if $?.exitstatus > 0
+      catapult_exception("Your configuration could not be decrypted, please confirm your team's gpg_key is correct in secrets/configuration-user.yml")
+    end
 
 
 
@@ -1232,7 +1241,7 @@ module Catapult
           puts "   - Configured Bamboo service for automated deployments."
           # validate software
           unless instance["software"] == nil
-            unless ["codeigniter2","drupal6","drupal7","silverstripe","wordpress","xenforo"].include?("#{instance["software"]}")
+            unless ["codeigniter2","codeigniter3","drupal6","drupal7","silverstripe","wordpress","xenforo"].include?("#{instance["software"]}")
               catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be one of the following [\"codeigniter2\",\"drupal6\",\"drupal7\",\"wordpress\",\"xenforo\"].")
             end
             unless ["downstream","upstream"].include?("#{instance["software_workflow"]}")
