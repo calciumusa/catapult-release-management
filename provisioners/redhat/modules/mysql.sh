@@ -113,9 +113,12 @@ while IFS='' read -r -d '' key; do
             # @todo this is intended so that a developer can commit a dump from active work in localdev then the process detect this and kick off the restore rather than dump workflow
             if ! [ -f /var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql ]; then
                 # flush meta tables before mysqldump to cut size, prevent potential issues restoring, and good house cleaning
-                if ([ "${software}" = "drupal6" ] || [ "${software}" = "drupal7" ]); then
-                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush watchdog-delete all -y | sed "s/^/\t\t/"
-                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush cache-clear all -y | sed "s/^/\t\t/"
+                if [ "${software}" = "drupal6" ]; then
+                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush watchdog-delete all -y
+                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush cache-clear all -y
+                elif [ "${software}" = "drupal7" ]; then
+                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush watchdog-delete all -y
+                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush cache-clear all -y
                 elif [ "${software}" = "wordpress" ]; then
                     php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root cache flush
                 fi
@@ -146,7 +149,7 @@ while IFS='' read -r -d '' key; do
                 cd "/var/www/repositories/apache/${domain}" && git config --global user.name "Catapult" 2>&1 | sed "s/^/\t/"
                 cd "/var/www/repositories/apache/${domain}" && git config --global user.email "$(echo "${configuration}" | shyaml get-value company.email)" 2>&1 | sed "s/^/\t/"
                 cd "/var/www/repositories/apache/${domain}" && git add --all "/var/www/repositories/apache/${domain}/_sql" 2>&1 | sed "s/^/\t/"
-                cd "/var/www/repositories/apache/${domain}" && git commit -m "Catapult auto-commit ${1}:${software_workflow}. See https://github.com/devopsgroup-io/catapult-release-management for more information. *This is the only type of commit that Catapult makes for you, this is to ensure the database of the website travels with the website's repository." 2>&1 | sed "s/^/\t/"
+                cd "/var/www/repositories/apache/${domain}" && git commit -m "Catapult auto-commit ${1}:${software_workflow}. Ensures the database of the website travels with the website's repository. See https://github.com/devopsgroup-io/catapult" 2>&1 | sed "s/^/\t/"
                 cd "/var/www/repositories/apache/${domain}" && sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git push origin develop" 2>&1 | sed "s/^/\t/"
             else
                 echo -e "\t\ta backup was already performed today"

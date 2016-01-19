@@ -1,40 +1,44 @@
-# Catapult Release Management #
+# Catapult #
+<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/repositories/apache/_default_/svg/catapult.svg" width="200">
 
+**Catapult** is a lean website and workflow management platform built from leading and affordable technology.
 
+**Our mission** is to create a pre-defined website and workflow management platform that solves every common problem of a website's life-cycle.
 
-**Welcome to devopsgroup.io Catapult Release Management**, a complete DevOps Release Management solution featuring automated website deployment and continuous integration, while following Gitflow and SCRUM workflows. Built for Developers, but simple enough to use by non-Developers. Catapult's core technologies and features include:
+**Our vision** is to afford developers an accelerated path to best practice and performance at minimal cost.
 
-* Configuration Management via CloudFlare, DigitalOcean, Git, GPG, Shell, and Vagrant
-* Continuous Integration via Bamboo and AWS
-* Source Code Management via Bitbucket and/or GitHub
-* Website Uptime Monitoring via monitor.us (Monitis)
+* Configuration Management - Catapult
+* Encryption - GnuPG
+* Source Code Management - Git (via GitHub or Bitbucket)
+* Environment Management - Vagrant
+* Development Virtualization - VirtualBox
+* Cloud Hosting - DigitalOcean
+* DNS Management - CloudFlare
+* Continuous Integration - Bamboo and AWS
+* Performance Monitoring - New Relic
 
+Do you need Catapult? Here are a few triggers:
 
-As a **non-Developer** you may think - *I already have a website, why do I need Catapult?* Over time you may find yourself overwhelmed with managing the the day to day DevOps process of infrastrucrure , and end up paying a freelancer or a development company hundreds or even thousands of dollars to manage or interact with the DevOps (Development Operations) to solve these problems:
-
-  * Production is down.
-  * We need a test site.
-  * Why is this costing so much?
-  * Are my environments safe? 
-  * Is my website backed up?
-  * Can I easily scale my website for more traffic?
-  * What is my uptime?
-
-As a **Developer**, you have to manage many websites and probably end up using the same set of tools and APIs over and over again. Why not use something that has been created from it's foundations by Devlopers that have been down the same road as you, and contribute back to the project at the same time?
-
-  * Catapult is developed in Ruby and native Shell - there are no new languages or technologies to learn.
-  * Catapult's simplicity is it's strength. There is no black-box to decipher - the functionality and methodology is out in the open and accessible to anyone.
-  * Catapult uses the most popular APIs and services; including AWS, Bamboo, Bitbucket, CloudFlare, DigitalOcean, GitHub, and Vagrant.
-
-Catapult manages all of this for you through an open-source and well-documented platform, with a developer-focused point of view. We also provide a service and assistance if you need help getting started, or just have a question - just contact us at https://devopsgroup.io. Catapult leverages the Services that you're already using, which collectively, costs $40/month to have a full-stack localDev, Test, Quality Control, and Production environment.
+* Production is down.
+* We need a test site.
+* Why is this costing so much?
+* Are my environments safe? 
+* Is my website backed up?
+* Can I easily scale my website for more traffic?
+* What is my uptime?
 
 *Go ahead, give* **Catapult** *a* **shot**.
 
+## Security Disclosure ##
 
+Security is very important to us. If you have any issue regarding security, 
+please disclose the information responsibly by sending an email to 
+security@devopsgroup.io and not by creating a GitHub issue.
 
 ## Table of Contents ##
 
-- [Catapult Release Management](#catapult-release-management)
+- [Catapult](#catapult)
+    - [Security Disclosure](#security-disclosure)
     - [Table of Contents](#table-of-contents)
     - [Supported Software](#supported-software)
 - [Setup](#setup)
@@ -58,7 +62,8 @@ Catapult manages all of this for you through an open-source and well-documented 
 
 Catapult supports the following software:
 
-* Any website without a database dependency built in PHP
+* Any PHP project compatible with PHP 5.4
+    * as limited by CentOS 7.2
 * CodeIgniter 2.x
 * CodeIgniter 3.x
 * Drupal 6.x, Drupal 7.x
@@ -228,12 +233,6 @@ Catapult uses several third-party services to pull everything off - below is a l
         3. Visit your My Account section at https://www.cloudflare.com/a/account/my-account and scroll down to your API Key and place the token value at `~/secrets/configuration.yml["company"]["cloudflare_api_key"]`
         4. Place the email address of the email address that you used to sign up for CloudFlare at `~/secrets/configuration.yml["company"]["cloudflare_email"]`
 5. **Monitoring:**
-    1. **monitor.us** sign-up and configuration
-        1. Create a monitor.us account at http://www.monitor.us
-        2. Sign in to your new monitor.us account
-        3. Go to Tools > API > API Key.
-        4. Place your API key at `~/secrets/configuration.yml["company"]["monitorus_api_key"]`
-        5. Place your Secret key at `~/secrets/configuration.yml["company"]["monitorus_secret_key"]`
     1. **New Relic** sign-up and configuration
         1. Create a New Relic account at http://newrelic.com/
         2. Sign in to your New Relic account
@@ -262,7 +261,7 @@ Catapult uses several third-party services to pull everything off - below is a l
 | **DNS:**                      |                                                                  |              |
 | CloudFlare                    | test., qc., and production global DNS                            | Free         |
 | **Monitoring:**               |                                                                  |              |
-| monitor.us                    | Production website updtime monitoring                            | Free         |
+| New Relic                     | Full-stack performance monitoring                                | Free         |
 | **Total**                     |                                                                  | $41 - $55    |
 
 
@@ -446,15 +445,15 @@ Once you're satisfied with new website in localdev, it's time to commit configur
 
 Once a website exists in the upstream environments (test, qc, production), automated deployments will kick off if changes are detected on their respected branches (see chart below). The same workflow of moving a website upstream, exists when you make changes to a specific website's repository.
 
-| Environment                    | dev                                                         | test                                                            | qc                                                             | production                                                    |
-|--------------------------------|-------------------------------------------------------------|-----------------------------------------------------------------|----------------------------------------------------------------|---------------------------------------------------------------|
-| **Running Branch**             | *develop*                                                   | *develop*                                                       | *release*                                                      | *master*                                                      |
-| **New Website Provisioning**   | Manually via Vagrant                                        | Automatically via Bamboo (new commits to **develop**)           | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo                                           |
-| **Downstream Database**        | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo          | Restore from **master** ~/_sql folder of website repo          | Daily backup to **develop** ~/_sql folder of website repo     |
-| **Upstream Database**          | Restore from **develop** ~/_sql folder of website repo      | Daily backup to **develop** ~/_sql folder of website repo       | Restore from **master** ~/_sql folder of website repo          | Restore from **master** ~/_sql folder of website repo         |
-| **Downstream Untracked Files** | rsync files from **production**                             | rsync files from **production**                                 | rsync files from **production**                                | --                                                            |
-| **Upstream Untracked Files**   | rsync files from **test**                                   | --                                                              | rsync files from **test**                                      | rsync files from **test**                                     |
-| **Automated Deployments**      | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)           | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo                                           |
+| Environment                    | dev                                                         | test                                                              | qc                                                             | production                                                        |
+|--------------------------------|-------------------------------------------------------------|-------------------------------------------------------------------|----------------------------------------------------------------|-------------------------------------------------------------------|
+| **Running Branch**             | *develop*                                                   | *develop*                                                         | *release*                                                      | *master*                                                          |
+| **New Website Provisioning**   | Manually via Vagrant                                        | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo                                               |
+| **Downstream Database**        | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo            | Restore from **release** ~/_sql folder of website repo         | Backup to **develop** ~/_sql folder of website repo during deploy |
+| **Upstream Database**          | Restore from **develop** ~/_sql folder of website repo      | Backup to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo             |
+| **Downstream Untracked Files** | rsync files from **production**                             | rsync files from **production**                                   | rsync files from **production**                                | --                                                                |
+| **Upstream Untracked Files**   | rsync files from **test**                                   | --                                                                | rsync files from **test**                                      | rsync files from **test**                                         |
+| **Deployments**                | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo                                               |
 
 
 
@@ -463,7 +462,6 @@ Once a website exists in the upstream environments (test, qc, production), autom
 Once you Provision Websites and it's time to work on a website, there are a few things to consider:
 
 * Using the `software_workflow` flag for `upstream` websites is great, you can develop your code in localDev then have anyone in your company enter content into Drupal, Wordpress, etc. However, in the cercumstance that you absolutely need to move your localDev database `upstream`, it's as easy as saving a .sql dump to your website's repository develop branch under the _sql folder with today's date (following the YYYYMMDD.sql format). You can then `vagrant rebuild` the `~/secrets/configuration.yml["company"]["name"]-test-redhat-mysql` server and it will restore from your new sql dump.
-
 
 
 
@@ -477,27 +475,14 @@ Below is a list of known limitations with Catapult, if you're still having issue
     * [09-01-2015] vagrant rebuild was failing with a `The configured shell (config.ssh.shell) is invalid and unable to properly execute commands.` it is due to DigitalOcean's API not re-inserting the SSH key that was originally used during the first vagrant up (creation of the droplet). To rebuild, you must use the DigitalOcean console, run through the first root password reset workflow that was emailed to you, then vi /etc/sudoers and remove the Defaults requiretty line and save and exit. You can then run vagrant provision successfully.
 * **Git**
     * [09-08-2015] Some database dumps exceed 100MB, so it's recommened to use Bitbucket in those instances as Catapult auto-commits database dumps to your website's repository, up to 500MB worth of database dumps or the one, newest database dump. [Bitbucket](https://help.github.com/articles/what-is-my-disk-quota/) has a 2GB hard repo push limit with no documented file limit and [GitHub](https://help.github.com/articles/what-is-my-disk-quota/) has a 1GB soft repo limit with a 100MB file size limit.
-* **monitor.us**
-    * [08-10-2015] If your `~/secrets/configuration.yml["websites"]["apache/iis"]["domain"]` includes the `force_https` option, you will need to login to monitor.us and enable SNI from Monitors > Monitor List > Actions > Basic Settings > Enable SNI support. 
 * **Vagrant**
     * [07-27-2015] If your `~/secrets/configuration.yml["websites"]["apache/iis"]["domain"]` includes the `force_https` option, during `vagrant status` you will receive an err for the http response code for `.dev` as this is a self-signed cert and not routing through CloudFlare.
 
 
 
-# Services Justification #
-
-Catapult uses many factors to make the best decision when it comes to choosing **Services**, the following are taken into account - popularity, cost, API support, and user experience. The following is an outline of what we think the common questions may be when you see Catapult using a particular **Service**. Have your own perspective? [Let us know](https://github.com/devopsgroup-io/catapult-release-management/issues/new).
-
-* **monitor.us**
-    * [08-10-2015] monitor.us does not have the greatest user interface, branding, or technology. However, it does something that no other application monitoring services do - it offers free http/https monitoring and an API that allows Catapult to add these monitors for you.
-        * A service to watch would be New Relic, however, the blocker is that there is no API support for their synthetic monitoring.
-        * Other services researched were AppDynamics, DataDog, and StatusCake which all fell short in pricing or API functionality.
-
-
-
 # Contributing #
 
-So you want to contribute... Great! Open source projects like Catapult Release Management succeed or fail upon the involvement of a thriving community of developers, who often offer various levels of code skills and time commitment. Here are some ways you can begin contributing right away, at whatever level is most comfortable for you.
+So you want to contribute... Great! Open source projects like Catapult succeed or fail upon the involvement of a thriving community of developers, who often offer various levels of code skills and time commitment. Here are some ways you can begin contributing right away, at whatever level is most comfortable for you.
 
   * Submit a feature
   * Report a bug
