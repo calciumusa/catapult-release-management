@@ -1,23 +1,15 @@
 # Catapult #
-<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/repositories/apache/_default_/svg/catapult.svg" width="200">
+<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/repositories/apache/_default_/svg/catapult.svg" align="center" alt="Catapult" width="200">
 
-**Catapult** is a lean website and workflow management platform built from leading and affordable technology.
+:boom: **Catapult** is a lean website and workflow management platform built from leading and affordable technology.
 
-**Our mission** is to create a pre-defined website and workflow management platform that solves every common problem of a website's life-cycle.
+:earth_americas: **Our mission** is to create a pre-defined platform that orchestrates every common problem of a website's life-cycle.
 
-**Our vision** is to afford developers an accelerated path to best practice and performance at minimal cost.
+:rocket: **Our vision** is to afford developers an accelerated path to best practice and performance at minimal cost.
 
-* Configuration Management - Catapult
-* Encryption - GnuPG
-* Source Code Management - Git (via GitHub or Bitbucket)
-* Environment Management - Vagrant
-* Development Virtualization - VirtualBox
-* Cloud Hosting - DigitalOcean
-* DNS Management - CloudFlare
-* Continuous Integration - Bamboo and AWS
-* Performance Monitoring - New Relic
+<br>
 
-Do you need Catapult? Here are a few triggers:
+**Do you need a website and workflow management platform?** Here are a few triggers.
 
 * Production is down.
 * We need a test site.
@@ -29,32 +21,44 @@ Do you need Catapult? Here are a few triggers:
 
 *Go ahead, give* **Catapult** *a* **shot**.
 
+
+
 ## Security Disclosure ##
 
 Security is very important to us. If you have any issue regarding security, 
 please disclose the information responsibly by sending an email to 
 security@devopsgroup.io and not by creating a GitHub issue.
 
-## Table of Contents ##
 
-- [Catapult](#catapult)
-    - [Security Disclosure](#security-disclosure)
-    - [Table of Contents](#table-of-contents)
-    - [Supported Software](#supported-software)
-- [Setup](#setup)
-    - [Developer Setup](#developer-setup)
-    - [Instance Setup](#instance-setup)
-    - [Services Setup](#services-setup)
-- [Usage](#usage)
-    - [Provision Environments](#provision-environments)
-    - [Configure Automated Deployments](#configure-automated-deployments)
-    - [Provision Websites](#provision-websites)
-    - [Develop Websites](#develop-websites)
-- [Troubleshooting](#troubleshooting)
-- [Services Justification](#services-justification)
-- [Contributing](#contributing)
-    - [Releases](#releases)
-- [Community](#community)
+
+## Technology Overview ##
+
+Catapult leverages the following technologies and technology services to implement key components of DevOps.
+
+* **Configuration Management**
+    * Catapult
+    * Encryption - GnuPG
+* **Source Code Management**
+    * Catapult - Git (via GitHub)
+    * Websites - Git (via GitHub or Bitbucket)
+* **Environment Management**
+    * Vagrant
+* **Development Virtualization**
+    * VirtualBox
+* **Cloud Hosting**
+    * DigitalOcean
+* **DNS Management**
+    * CloudFlare
+* **Continuous Integration**
+    * Bamboo
+    * Build Server - Amazon Web Services (AWS)
+* **Monitoring**
+    * Server Resources and Uptime - New Relic Servers
+    * Application - New Relic APM
+    * Browser - New Relic Browsers
+    * Website Uptime - \*New Relic Synthetics
+
+\* This technology is currently not integrated into Catapult due to limitations of the service - manual configuration is required.
 
 
 
@@ -72,6 +76,30 @@ Catapult supports the following software:
 * WordPress 3.5.2+, WordPress 4.x
     * as required by WP-CLI
 * XenForo 1.x
+
+
+
+## Table of Contents ##
+
+- [Catapult](#catapult)
+    - [Technology Overview](#technology-overview)
+    - [Security Disclosure](#security-disclosure)
+    - [Supported Software](#supported-software)
+    - [Table of Contents](#table-of-contents)
+- [Setup](#setup)
+    - [Developer Setup](#developer-setup)
+    - [Instance Setup](#instance-setup)
+    - [Services Setup](#services-setup)
+- [Usage](#usage)
+    - [Provision Environments](#provision-environments)
+    - [Configure Automated Deployments](#configure-automated-deployments)
+    - [Provision Websites](#provision-websites)
+    - [Develop Websites](#develop-websites)
+- [Troubleshooting](#troubleshooting)
+- [Services Justification](#services-justification)
+- [Contributing](#contributing)
+    - [Releases](#releases)
+- [Community](#community)
 
 
 
