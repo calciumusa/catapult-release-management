@@ -46,12 +46,10 @@ module Catapult
     require "json"
     require "net/ssh"
     require "net/http"
-    require "nokogiri"
     require "open-uri"
     require "openssl"
     require "resolv"
     require "securerandom"
-    require "socket"
     require "yaml"
 
 
@@ -1226,10 +1224,9 @@ module Catapult
       puts "\n[http response codes]"
       puts " * 200 ok, 301 moved permanently, 302 found, 400 bad request, 401 unauthorized, 403 forbidden, 404 not found, 500 internal server error, 502 bad gateway, 503 service unavailable, 504 gateway timeout"
       puts " * http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html"
-      puts "\n[cert signature algorithm]"
-      puts " * https://www.openssl.org/docs/apps/ciphers.html"
+      puts " * Keep in mind these response codes and nslookups are from within your network - they may differ externally if you're running your own DNS server internally."
       puts "\nAvailable websites:".color(Colors::WHITE)
-      puts "".ljust(42) + "[software]".ljust(14) + "[alexa rank, 3m delta]".ljust(24) + "[dev.]".ljust(21) + "[test.]".ljust(21) + "[qc.]".ljust(21) + "[production / cert expiry, signature algorithm, common name]"
+      puts "".ljust(42) + "[software]".ljust(14) + "[workflow]".ljust(14) + "[dev.:80]".ljust(21) + "[test.:80]".ljust(21) + "[qc.:80]".ljust(21) + "[production:80]"
 
       @configuration["websites"].each do |service,data|
         if @configuration["websites"]["#{service}"] == nil
@@ -1250,39 +1247,8 @@ module Catapult
             end
             # get software
             row.push((instance["software"] || "").ljust(13))
-            # alexa rank and 3 month deviation
-            begin
-              if instance["domain_tld_override"] == nil
-                uri = URI("http://data.alexa.com/data?cli=10&url=#{instance["domain"]}")
-              else
-                uri = URI("http://data.alexa.com/data?cli=10&url=#{instance["domain"]}.#{instance["domain_tld_override"]}")
-              end
-              Net::HTTP.start(uri.host, uri.port) do |http|
-                request = Net::HTTP::Get.new uri.request_uri
-                response = http.request request
-                response = Nokogiri::XML(response.body)
-                if "#{response.xpath('//ALEXA//SD//POPULARITY')}" != ""
-                  response.xpath('//ALEXA//SD//POPULARITY').each do |attribute|
-                    row.push(attribute["TEXT"].to_s.reverse.gsub(/...(?=.)/,'\&,').reverse.ljust(11))
-                  end
-                else
-                  row.push("".ljust(11))
-                end
-                if "#{response.xpath('//ALEXA//SD//RANK')}" != ""
-                  response.xpath('//ALEXA//SD//RANK').each do |attribute|
-                    if attribute["DELTA"].match(/\+\d+/)
-                      operator = "+"
-                    elsif attribute["DELTA"].match(/\-\d+/)
-                      operator = "-"
-                    end
-                    delta = attribute["DELTA"].split(/[+,-]/)
-                    row.push("#{operator}#{delta[1].to_s.reverse.gsub(/...(?=.)/,'\&,').reverse}".ljust(11))
-                  end
-                else
-                  row.push("".ljust(11))
-                end
-              end
-            end
+            # get software workflow
+            row.push((instance["software_workflow"] || "").ljust(13))
             # get http response code per environment
             @configuration["environments"].each do |environment,data|
               response = nil
@@ -1348,38 +1314,6 @@ module Catapult
               rescue
                 row.push("down".ljust(15).color(Colors::RED))
               end
-            end
-            # ssl cert lookup
-            begin 
-              timeout(1) do
-                if instance["domain_tld_override"] == nil
-                  tcp_client = TCPSocket.new("#{instance["domain"]}", 443)
-                else
-                  tcp_client = TCPSocket.new("#{instance["domain"]}.#{instance["domain_tld_override"]}", 443)
-                end
-                ssl_context = OpenSSL::SSL::SSLContext.new
-                ssl_context.ssl_version = :TLSv1_2
-                ssl_client = OpenSSL::SSL::SSLSocket.new(tcp_client, ssl_context)
-                ssl_client.connect
-                cert = OpenSSL::X509::Certificate.new(ssl_client.peer_cert)
-                ssl_client.sysclose
-                tcp_client.close
-                #http://ruby-doc.org/stdlib-2.0/libdoc/openssl/rdoc/OpenSSL/X509/Certificate.html
-                date = Date.parse((cert.not_after).to_s)
-                row.push("#{date.strftime('%F')} #{cert.signature_algorithm} #{cert.subject.to_a.select{|name, _, _| name == 'CN' }.first[1]}".downcase.ljust(57))
-              end
-            rescue SocketError
-              row.push("down".ljust(57).color(Colors::RED))
-            rescue Errno::ECONNREFUSED
-              row.push("connection refused".ljust(57))
-            rescue Errno::ECONNRESET
-              row.push("connection reset".ljust(57))
-            rescue Timeout::Error
-              row.push("no 443 listener".ljust(57))
-            rescue OpenSSL::SSL::SSLError
-              row.push("cannot read cert, missing local cipher?".ljust(57))
-            rescue Exception => ex
-              row.push("#{ex.class}".ljust(57))
             end
             puts row.join(" ")
           end
