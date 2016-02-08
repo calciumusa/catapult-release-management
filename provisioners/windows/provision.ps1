@@ -97,6 +97,22 @@ Where { $_.PSChildName -match '^(?!S)\p{L}'} |
 Select PSChildName, Version, Release
 
 
+echo "`n==> Installing Web Platform Installer (This may take a while...)"
+# http://www.iis.net/learn/install/web-platform-installer/web-platform-installer-v4-command-line-webpicmdexe-rtw-release
+if (-not(Test-Path -Path "c:\Program Files\Microsoft\Web Platform Installer\WebpiCmd-x64.exe")) {
+    # https://github.com/fdcastel/psunattended/blob/master/PSUnattended.ps1
+    start-process -filepath msiexec -argumentlist "/i ""c:\catapult\provisioners\windows\installers\WebPlatformInstaller_amd64_en-US.msi"" /q ALLUSERS=1 REBOOT=ReallySuppress" -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
+    get-content $provision
+    get-content $provisionError
+}
+
+
+echo "`n==> Installing URL Rewrite 2.0"
+start-process -filepath "c:\Program Files\Microsoft\Web Platform Installer\WebpiCmd-x64.exe" -argumentlist "/install /products:""UrlRewrite2"" /accepteula" -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
+get-content $provision
+get-content $provisionError
+
+
 echo "`n==> Installing Git"
 if (-not(Test-Path -Path "c:\Program Files (x86)\Git\bin\git.exe")) {
     start-process -filepath "c:\catapult\provisioners\windows\installers\Git-1.9.5-preview20141217.exe" -argumentlist "/SP- /NORESTART /VERYSILENT /SUPPRESSMSGBOXES /SAVEINF=c:\catapult\provisioners\windows\logs\git-settings.txt /LOG=c:\catapult\provisioners\windows\logs\Git-1.9.5-preview20141217.exe.log" -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
@@ -223,6 +239,9 @@ if (-not($config.websites.iis)) {
 
     echo "`n==> Creating websites"
     foreach ($instance in $config.websites.iis) {
+        if ($instance.webroot) {
+            $instance.webroot = $instance.webroot.Replace("/","\")
+        }
         new-website -name ("$($args[0]).{0}" -f $instance.domain) -hostheader ("$($args[0]).{0}" -f $instance.domain) -port 80 -physicalpath ("c:\inetpub\repositories\iis\{0}\{1}" -f $instance.domain,$instance.webroot) -ApplicationPool ("$($args[0]).{0}" -f $instance.domain) -force
    }
 
