@@ -1,5 +1,5 @@
 # Catapult #
-<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/repositories/apache/_default_/svg/catapult.svg" align="center" alt="Catapult" width="200">
+<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/repositories/apache/_default_/svg/catapult.svg" alt="Catapult" width="200">
 
 :boom: **Catapult** is a pre-defined website and workflow management platform built from leading and affordable technology.
 
@@ -105,7 +105,7 @@ HTTPS                               | Free                           | $30/mo + 
 Monitoring                          | New Relic                      | Proprietary               | Proprietary
 Supported Software                  | Numerous                       | 2                         | 1
 
-\* Catapult rolls out new features on a regular basis - this feature is highlighted for improvement or a future release.
+\* Catapult introduces new features on a regular basis - this feature is highlighted as a milestone for future release.
 See an error or have a suggestion? Email competition@devopsgroup.io
 
 
@@ -125,8 +125,9 @@ See an error or have a suggestion? Email competition@devopsgroup.io
 - [Usage](#usage)
     - [Provision Environments](#provision-environments)
     - [Configure Automated Deployments](#configure-automated-deployments)
-    - [Provision Websites](#provision-websites)
-    - [Develop Websites](#develop-websites)
+- [Release Management](#release-management)
+    - [Website Configuration](#website-configuration)
+    - [Website Development](#website-development)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
     - [Releases](#releases)
@@ -331,7 +332,7 @@ New Relic | Application, Browser, and Server Monitoring | Free
 
 # Usage #
 
-To use Catapult you will need to [Provision Environments](#provision-environments), [Configure Automated Deployments](#configure-automated-deployments), then [Provision Websites](#provision-websites).
+To start using Catapult you will need to [Provision Environments](#provision-environments) and [Configure Automated Deployments](#configure-automated-deployments).
 
 
 
@@ -427,9 +428,30 @@ Once the Web and Database Servers are up and running, it's then time to configur
 
 
 
-## Provision Websites ##
+# Release Management #
 
-Adding websites to Catapult is easy. The only requirement is that the website needs to be contained in its own repo on GitHub or Bitbucket. Websites are then added to configuration.yml, a minimal addition looks like this:
+Catapult follows Gitflow for its configuration and development model - each environment runs a specific branch and changes are made by pull requests from one branch to the next.
+
+<img src="https://www.atlassian.com/git/images/tutorials/collaborating/comparing-workflows/gitflow-workflow/05.svg" alt="Gitflow" width="600">
+[1](#references)
+
+
+Environment | LocalDev | Test | QC | Production
+------------|----------|------|----|-----------
+**Running Branch**                     | *develop*                                                   | *develop*                                                         | *release*                                                      | *master*
+**Website Provisioning**               | Manually via Vagrant                                        | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
+**Downstream Workflow Database**       | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo            | Restore from **release** ~/_sql folder of website repo         | Backup to **develop** ~/_sql folder of website repo during deploy
+**Upstream Workflow Database**         | Restore from **develop** ~/_sql folder of website repo      | Backup to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
+**Downstream Workflow Software Files** | rsync files from **Production** if untracked                | rsync files from **Production** if untracked                      | rsync files from **Production** if untracked                   | --
+**Upstream Workflow Software Files**   | rsync files from **Test** if untracked                      | --                                                                | rsync files from **Test** if untracked                         | rsync files from **Test** if untracked
+**Deployments**                        | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
+
+
+
+
+## Website Configuration ##
+
+Adding websites to Catapult is easy. The only requirement is that the website needs to be contained in its own repo at GitHub or Bitbucket. Websites are then added to configuration.yml, a minimal addition looks like this:
 
 ```
 websites:
@@ -486,66 +508,56 @@ The following options are available:
         * sets permissions for ~/sites/default/files
         * dumps and restores database at ~/sql
         * invokes drush updatedb
-        * resets Drupal admin password
+        * resets drupal6 admin password
     * `drupal7`
         * generates drupal7 database config file ~/sites/default/settings.php
         * rsyncs untracked ~/sites/default/files
         * sets permissions for ~/sites/default/files
         * dumps and restores database at ~/sql
         * invokes drush updatedb
-        * resets Drupal admin password
+        * resets drupal7 admin password
     * `silverstripe`
         * generates silverstripe database config file ~/mysite/_config.php
         * restores newest database from ~/sql
     * `wordpress`
-        * generates WordPress database config file ~/installers/wp-config.php
+        * generates wordpress database config file ~/installers/wp-config.php
         * rsyncs untracked ~/wp-content/uploads
         * sets permissions for ~/wp-content/uploads
         * dumps and restores database at ~/sql
         * invokes wp-cli core update-db
-        * resets WordPress admin password
+        * resets wordpress admin password
     * `xenforo`
-        * generates xenforo database config file ~/library/config.php
-        * rsyncs ~/data and ~/internal_data
-        * sets for ~/data and ~/internal_data
+        * generates xenForo database config file ~/library/config.php
+        * rsyncs untracked ~/data and ~/internal_data
+        * sets permissions for ~/data and ~/internal_data
         * dumps and restores database at ~/sql
 * software_dbprefix:
     * `wp_`
         * `wp_` is required for base Wordpress installs, Drupal has no prefix by default
 * software_workflow:
     * `downstream`
-        * Production is the source for the database and upload directories of software
+        * Production is the source for the database and software upload directories
         * this option is used when maintaining a website
     * `upstream`
-        * Test is the source for the database and upload directories of software
+        * Test is the source for the database and software upload directories
         * this option is used when launching a new website
 * webroot:
     * `www/`
         * if the webroot differs from the repo root, specify it here
         * must include the trailing slash
 
-Once you add a new website to configuration.yml, it's time to test in LocalDev:
+Once you add or remove a website to configuration.yml, it's time to test in LocalDev:
 
   * `vagrant provision ~/secrets/configuration.yml["company"]["name"]-dev-redhat`
   * `vagrant provision ~/secrets/configuration.yml["company"]["name"]-dev-redhat-mysql`
 
-Once you're satisfied with new website in LocalDev, it's time to commit configuration.yml.gpg to your Catapult fork's develop branch, this will kick off a automated deployment of Test. Once you're satisfied with the website in Test, it's time to create a pull request from your Catapult fork's develop branch into release - once the pull request is merged, this will kick off an automated deployment to QC. Once you're satisfied with the website in QC, it's time to create a pull request from your Catapult fork's release branch into master. Production does not have any automated deployments, to deploy your website to Production it's time to login to Bamboo and press the deployment button for Production.
+Once you're satisfied with the website in LocalDev, it's time to commit configuration.yml.gpg to your Catapult fork's develop branch, this will kick off an automated deployment of Test. Once you're satisfied with the website in Test, then create a pull request from your Catapult fork's develop branch into release - once the pull request is merged, this will kick off an automated deployment to QC. Once you're satisfied with the website in QC, then create a pull request from your Catapult fork's release branch into master. Production does not have any automated deployments, to deploy your website to Production, login to Bamboo and press the play button for Production.
 
-Once a website exists in the upstream environments (Test, QC, Production), automated deployments will kick off if changes are detected on their respected branches (see chart below). The same workflow of moving a website upstream, exists when you make changes to a specific website's repository.
-
-Environment | LocalDev | Test | QC | Production
-------------|----------|------|----|-----------
-**Running Branch**             | *develop*                                                   | *develop*                                                         | *release*                                                      | *master*
-**New Website Provisioning**   | Manually via Vagrant                                        | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
-**Downstream Database**        | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo            | Restore from **release** ~/_sql folder of website repo         | Backup to **develop** ~/_sql folder of website repo during deploy
-**Upstream Database**          | Restore from **develop** ~/_sql folder of website repo      | Backup to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
-**Downstream Untracked Files** | rsync files from **Production**                             | rsync files from **Production**                                   | rsync files from **Production**                                | --
-**Upstream Untracked Files**   | rsync files from **Test**                                   | --                                                                | rsync files from **Test**                                      | rsync files from **Test**
-**Deployments**                | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
+Once a website exists in the upstream environments (Test, QC, Production), automated deployments will deploy changes that are detected on their respected branches.
 
 
 
-## Develop Websites ##
+## Website Development ##
 
 Once you Provision Websites and it's time to work on a website, there are a few things to consider:
 
@@ -575,7 +587,6 @@ So you want to contribute... Great! Open source projects like Catapult succeed o
   * Verify and track down a reported bug
   * Add documentation to the README
   * Answer project specific questions
-  * Contribute to the Catapult wiki
   * Blog about your experiences with Catapult
 
 When you first setup Catapult a `develop-catapult` branch is created for you under your forked repository, with an upstream set to `https://github.com/devopsgroup-io/catapult.git` so that you can easily create a pull request. Also keep in mind when closing issues to submit a pull request that includes [GitHub's: Closing issues via commit messages](https://help.github.com/articles/closing-issues-via-commit-messages/).
@@ -630,3 +641,8 @@ Catapult will also be seen throughout local meetups in the Philadelphia and Grea
 * [Philadelphia WordPress Meetup Group](http://www.meetup.com/philadelphia-wordpress-meetup-group/) 1.5k+ technologists
 * [Philly DevOps](http://www.meetup.com/PhillyDevOps/) 700+ technologists
 * [Greater Philadelphia Drupal Meetup Group](http://www.meetup.com/drupaldelphia/) 500+ technologists
+
+
+
+# References #
+1. Atlassian. Comparing Workflows. https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow. Accessed February 15, 2016.
