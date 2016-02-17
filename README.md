@@ -127,6 +127,8 @@ See an error or have a suggestion? Email competition@devopsgroup.io
     - [Configure Automated Deployments](#configure-automated-deployments)
 - [Release Management](#release-management)
     - [Catapult Configuration](#catapult-configuration)
+        - [Company](#company)
+        - [Environments](#environments)
         - [Websites](#websites)
     - [Website Development](#website-development)
 - [Troubleshooting](#troubleshooting)
@@ -226,7 +228,7 @@ New Relic | Application, Browser, and Server Monitoring | Free
 1. **Cloud Hosting:**    
     1. **DigitalOcean** sign-up and configuration
         1. Create an account at http://digitalocean.com
-           * Get a $10 credit and give us $25 once you spend $25 https://www.digitalocean.com/?refcode=6127912f3462
+           * [Free Stuff] Get a $10 credit and give us $25 once you spend $25 https://www.digitalocean.com/?refcode=6127912f3462
         2. Go to your DigitalOcean Applications & API Dashboard https://cloud.digitalocean.com/settings/api
             1. Create a Personal Access Token named "Vagrant" and place the token value at `~/secrets/configuration.yml["company"]["digitalocean_personal_access_token"]`
         3. Go to your DigitalOcean Security Dashboard https://cloud.digitalocean.com/settings/security
@@ -333,6 +335,8 @@ New Relic | Application, Browser, and Server Monitoring | Free
 5. **Monitoring:**
     1. **New Relic** sign-up and configuration
         1. Create a New Relic account at http://newrelic.com/
+            * [Free Stuff] Sign-up up for New Relic and get a Data Nerd shirt! http://newrelic.com/lp/datanerd
+            * [Free Stuff] Refer Catapult and get a New Relic hoodie! http://newrelic.com/referral
         2. Sign in to your New Relic account
         3. Go to your Account Settings > Integrations > API keys.
         4. Generate and place your REST API key at `~/secrets/configuration.yml["company"]["newrelic_api_key"]`
@@ -467,6 +471,43 @@ Environment | LocalDev | Test | QC | Production
 
 
 
+All instance specific configuration is stored in ~/secrets/configuration.yml and encrypted as ~/secrets/configuration.yml.gpg. There are three main sections - [Company](#company), [Environments](#environments), and [Websites](#websites).
+
+
+
+### Company ###
+
+
+
+The Company section contains globally used credentials and company information - all of which will be completed during [Setup Catapult](#setup-catapult).
+
+
+
+* name:
+    * `required: true`
+        * Your company's name or your name
+* email:
+    * `required: true`
+        * Your company's email or your email that is used for software admin accounts and virtual host admin
+* timezone_redhat:
+    * `required: true`
+        * Your timezone in tz database format that is used to for setting within operating systems and applications
+        * https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html
+* timezone_windows:
+    * `required: true`
+        * Your timezone in windows standard format that is used to for setting within operating systems and applications
+        * https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html
+
+
+
+### Environments ###
+
+
+
+The Company section contains environment configuration such as IP addresses and system credentials - most of which are automatically set during [Setup Catapult](#setup-catapult) and [Setup Environments](#setup-environments).
+
+
+
 ### Websites ###
 
 Adding websites to Catapult is easy. The only requirement is that the website needs to be contained in its own repo at GitHub or Bitbucket. Websites are then added to configuration.yml, a minimal addition looks like this:
@@ -481,13 +522,16 @@ websites:
 The following options are available:
 
 * domain:
-    * `example.com`
+    * `required: true`
+    * `example: example.com`
         * the domain name of what the website is/will be in Production
         * a maximum of one subdomain is supported (subdomain.example.com)
         * this drives the domains of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
         * dev.example.com, test.example.com, qc.example.com, example.com
 * domain_tld_override:
-    * `mycompany.com`
+    * `required: false`
+    * `default: null`
+    * `example: mycompany.com`
         * a domain name that will override the tld of the domain for when you do not have control of the domain (example.com), but still need a LocalDev and externally accessible Test and QC instance
         * this drives the domains of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
             * PLEASE NOTE: When removing this option from a website with `software`, you need to manually replace URLs in the database respective to the `software_workflow` option.
@@ -495,72 +539,90 @@ The following options are available:
                 * `php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/example.com/(webroot if applicable)" search-replace ":\/\/(www\.)?(dev\.|test\.)?(example\.com\.mycompany\.com)" "://example.com" --regex`
         * dev.example.com, test.example.com, qc.example.com, example.com are replaced by dev.example.com.mycompany.com, test.example.com.mycompany.com, qc.example.com.mycompany.com, example.com.mycompany.com
 * force_auth:
-    * `example`
+    * `required: false`
+    * `default: null`
+    * `example: example`
         * forces http basic authentication in Test, QC, and Production
         * `example` is both the username and password
 * force_auth_exclude:
-    * `["test","qc","production"]`
+    * `dependancy: force_auth`
+    * `required: false`
+    * `default: null`
+    * `values: ["test","qc","production"]`
         * array of exclusions exclusive to the force_auth option
 * force_https:
-    * `true`
+    * `required: false`
+    * `default: false`
+    * `value: true`
         * rewrite all http traffic to https
         * subdomains are not supported as limited by CloudFlare
         * you will receive an unsigned cert error in LocalDev
 * repo:
-    * `git@github.com:devopsgroup-io/devopsgroup-io.git`
+    * `required: true`
+    * `example: git@github.com:devopsgroup-io/devopsgroup-io.git`
         * GitHub and Bitbucket over SSH are supported, HTTPS is not supported
 * software:
-    * `codeigniter2`
+    * `required: false`
+    * `default: null`
+    * `value: codeigniter2`
         * generates codeigniter2 database config file ~/application/config/database.php
         * rsyncs untracked ~/uploads
         * sets permissions for ~/uploads
         * dumps and restores database at ~/sql
-    * `codeigniter3`
+    * `value: codeigniter3`
         * generates codeigniter3 database config file ~/application/config/database.php
         * rsyncs untracked ~/uploads
         * sets permissions for ~/uploads
         * dumps and restores database at ~/sql
-    * `drupal6`
+    * `value: drupal6`
         * generates drupal6 database config file ~/sites/default/settings.php
         * rsyncs untracked ~/sites/default/files
         * sets permissions for ~/sites/default/files
         * dumps and restores database at ~/sql
         * invokes drush updatedb
         * resets drupal6 admin password
-    * `drupal7`
+    * `value: drupal7`
         * generates drupal7 database config file ~/sites/default/settings.php
         * rsyncs untracked ~/sites/default/files
         * sets permissions for ~/sites/default/files
         * dumps and restores database at ~/sql
         * invokes drush updatedb
         * resets drupal7 admin password
-    * `silverstripe`
+    * `value: silverstripe`
         * generates silverstripe database config file ~/mysite/_config.php
         * restores newest database from ~/sql
-    * `wordpress`
+    * `value: wordpress`
         * generates wordpress database config file ~/installers/wp-config.php
         * rsyncs untracked ~/wp-content/uploads
         * sets permissions for ~/wp-content/uploads
         * dumps and restores database at ~/sql
         * invokes wp-cli core update-db
         * resets wordpress admin password
-    * `xenforo`
+    * `value: xenforo`
         * generates xenForo database config file ~/library/config.php
         * rsyncs untracked ~/data and ~/internal_data
         * sets permissions for ~/data and ~/internal_data
         * dumps and restores database at ~/sql
 * software_dbprefix:
-    * `wp_`
+    * `dependancy: software`
+    * `required: false`
+    * `default: null`
+    * `example: wp_`
         * `wp_` is required for base Wordpress installs, Drupal has no prefix by default
 * software_workflow:
-    * `downstream`
+    * `dependancy: software`
+    * `required: true`
+    * `default: null`
+    * `value: downstream`
         * Production is the source for the database and software upload directories
         * this option is used when maintaining a website
-    * `upstream`
+    * `value: upstream`
         * Test is the source for the database and software upload directories
         * this option is used when launching a new website
 * webroot:
-    * `www/`
+    * `required: false`
+    * `default: null`
+    * `example: www/`
         * if the webroot differs from the repo root, specify it here
         * must include the trailing slash
 
