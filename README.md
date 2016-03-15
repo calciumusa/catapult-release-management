@@ -23,9 +23,10 @@
 **What makes Catapult different?**
 
 * Catapult is open sourced.
-* Catapult is a single-state architecture - you will always be driving a fully optioned Ferrari.
-* Catapult is a configuration framework that invokes platform native shell scripts rather than using traditional configuration management tools such as Chef, Puppet, Salt.
-* Catapult overlays seamlessly with Scrum working methodology.
+* Catapult is a single-state architecture - there are no optional features.
+* Catapult only orchestrates - it is not required to run your infrastructure.
+* Catapult uses platform native shell scripts rather than configuration management tools such as Chef, Puppet, Salt.
+* Catapult overlays seamlessly with Scrum methodology.
 * Catapult features Gitflow workflow and branch-based environments.
 * Catapult features a unique workflow model - upstream or downstream.
 * Catapult is extremely cost effective.
@@ -94,30 +95,33 @@ The free market and competition is great - it pushes the envelope of innovation.
 
 Platform Feature | Catapult | Pantheon | Acquia
 -----------------|----------|----------|--------
-Source                              | Open                           | Closed                        | Closed
-Feature Set                         | Bundled                        | Separated                     | Separated
-Minimum Bundled<br>Monthly Cost     | $40                            | $400                          | $134
-Methodology                         | Scrum                          | :x:                           | :x:
-Workflow                            | Git Flow                       | Git Flow                      | Git Flow
-Workflow Model                      | Upstream or Downstream         | :x:                           | :x:
-Environments                        | LocalDev, Test, QC, Production | Multidev, Dev, Test, Live     | Dev Desktop, Dev, Stage, Prod
-Exacting Configuration              | :white_check_mark:             | :x:<sup>[2](#references)</sup>| :x:<sup>[3](#references)</sup>
-Approach                            | Virtual Machine                | Container                     | Virtual Machine
-Data Center                         | DigitalOcean and AWS           | Rackspace                     | AWS
-Scaling                             | Vertical                       | Horizontal                    | Vertical
-Scaling Management                  | *Manual                        | Automatic                     | Manual
-Development Environment             | Unlimited Local                | 5 Cloud                       | Unlimited Local
-Development Environment<br>Approach | Exact                          | Exact                         | Similar
-Dashboard - Control                 | CLI                            | CLI & Web                     | CLI & Web
-Dashboard - Monitor                 | CLI & \*Web                    | CLI & Web                     | CLI & Web
-Git                                 | GitHub & Bitbucket             | Proprietary                   | Proprietary 
-Managed DNS                         | CloudFlare                     | :x:                           | :x: 
-Managed HTTPS                       | Free                           | $30/mo + $cert                | $cert
-Managed Monitoring                  | New Relic                      | Proprietary                   | Proprietary
-Supported Software                  | Numerous                       | 2                             | 1
+Source                                        | Open                           | Closed                        | Closed
+Feature Set                                   | Bundled                        | Separated                     | Separated
+Supported Software                            | Numerous                       | 2                             | 1
+Minimum Bundled<br>Monthly Cost               | $40                            | $400                          | $134
+Managed Workflow                              | Git Flow                       | :x:                           | :x:
+Managed Workflow Model                        | Upstream or Downstream         | :x:                           | :x:
+Agile Methodology Focus                       | Scrum                          | :x:                           | :x:
+Environments                                  | LocalDev, Test, QC, Production | Multidev, Dev, Test, Live     | Dev Desktop, Dev, Stage, Prod
+Exacting Configuration                        | :white_check_mark:             | :x:<sup>[2](#references)</sup>| :x:<sup>[3](#references)</sup>
+Approach                                      | Virtual Machine                | Container                     | Virtual Machine
+Data Center                                   | DigitalOcean and AWS           | Rackspace                     | AWS
+Scaling                                       | Vertical                       | Horizontal                    | Vertical
+Scaling Management                            | *Manual                        | Automatic                     | Manual
+Development Environment                       | Unlimited Local                | 5 Cloud                       | Unlimited Local
+Development Environment Approach              | Exact                          | Exact                         | Similar
+Dashboard - Control                           | CLI                            | CLI & Web                     | CLI & Web
+Dashboard - Monitor                           | Web                            | Web                           | Web
+Managed Public Git Website Repository Support | GitHub & Bitbucket             | :x:                           | :x:
+Managed DNS                                   | CloudFlare                     | :x:                           | :x:
+Managed Free HTTPS/SSL                        | CloudFlare                     | :x:                           | :x:
+Managed Error Logs                            | New Relic                      | Proprietary                   | Proprietary
+Managed Application Performance Monitoring    | New Relic                      | :x:                           | :x:
+Managed Browser Performance Monitoring        | New Relic                      | :x:                           | :x:
+Managed Synthetic Monitoring                  | New Relic                      | :x:                           | :x:
+Managed Server Monitoring                     | New Relic                      | :x:                           | Proprietary
 
-\* Catapult introduces new features on a regular basis - this feature is highlighted as a milestone for future release.
-See an error or have a suggestion? Email competition@devopsgroup.io
+See an error or have a suggestion? Email competition@devopsgroup.io - we appreciate all feedback.
 
 
 
@@ -142,6 +146,10 @@ See an error or have a suggestion? Email competition@devopsgroup.io
         - [Environments](#environments)
         - [Websites](#websites)
     - [Website Development](#website-development)
+        - [Website Repositories](#website-repositories)
+        - [Forcing www](#forcing-www)
+        - [Refreshing Databases](#refreshing-databases)
+        - [Connecting to Databases](#connecting-to-databases)
     - [Performance Testing](#performance-testing)
         - [Website Concurrency Maxiumum](#website-concurrency-maximum)
         - [Interpreting Apache AB Results](#interpreting-apache-ab-results)
@@ -485,7 +493,7 @@ Environment | LocalDev | Test | QC | Production
 **Scrum Roles**                                 | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)          | Scrum Master, Development Team, Product Owner                  | Product Owner
 **Downstream Software Workflow - Database**     | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo            | Restore from **release** ~/_sql folder of website repo         | Backup to **develop** ~/_sql folder of website repo during deploy
 **Upstream Software Workflow - Database**       | Restore from **develop** ~/_sql folder of website repo      | Backup to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
-**Downstream Software Workflow - File Store**   | rsync files from **Production** if git untracked            | rsync files from **Production** if untracked                      | rsync files from **Production** if git untracked               | --
+**Downstream Software Workflow - File Store**   | rsync files from **Production** if git untracked            | rsync files from **Production** if git untracked                  | rsync files from **Production** if git untracked               | --
 **Upstream Software Workflow - File Store**     | rsync files from **Test** if git untracked                  | --                                                                | rsync files from **Test** if git untracked                     | rsync files from **Test** if git untracked
 
 
@@ -657,17 +665,11 @@ The following options are available:
 
 Performing development in a local environment is critical to reducing risk by exacting the environments that exist upstream, accomplished with Vagrant and VirtualBox.
 
-**Website Repositories**
-
+### Website Repositories ###
 * Repositories for websites are cloned into the Catapult instance at ~/repositories and in the respective apache or iis folder, listed by domain name.
     * Repositories are linked between the host and guest for realtime development.
 
-**Working with Databases**
-
-* Leverage Catapult's workflow model (configured by `software_workflow`) to trigger a database refresh. From the develop branch, commit a deletion of today's database backup from the ~/_sql folder.
-
-**Forcing www**
-
+### Forcing www ###
 * Forcing www is software specific, unlike forcing the https protocol, which is environment specific and driven by the `force_https` option. To force www ([why force www?](http://www.yes-www.org/)), please follow the respective guides per software:
     * `value: codeigniter2`
         * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
@@ -683,6 +685,28 @@ Performing development in a local environment is critical to reducing risk by ex
         * http://codex.wordpress.org/Changing_The_Site_URL
     * `value: xenforo`
         * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
+
+### Refreshing Databases ###
+* Databases are dumped once per day to the ~/_sql folder and restored, dependent on the environment and `software_workflow` setting per website - see [Release Management](#release-management) for details.
+* Leverage Catapult's workflow model (configured by `software_workflow`) to trigger a database refresh. From the develop branch, commit a deletion of today's database backup from the ~/_sql folder.
+
+### Connecting to Databases ###
+* Oracle SQL Developer is the recommended tool, to connect to and work with, databases. It is free, commercially supported, cross-platform, and supports multiple database types.
+* **Download and install** [Oracle SQL Developer](http://www.oracle.com/technetwork/developer-tools/sql-developer/downloads/index.html), some platforms require the [Java SE Development Kit](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
+* **Install third party JDBC drivers**: Oracle SQL Developer uses JDBC, via a .jar file, to connect to different database types. To install a new JDBC connector, download the respective .jar file then from Oracle SQL Developer > Preferences > Third Party JDBC Drivers, click Add Entry.<sup>[4](#references)</sup>
+    * **MySQL** http://dev.mysql.com/downloads/connector/j/5.0.html
+        * For convenience, you may also use `~/catapult/installers/mysql-connector-java-5.0.8-bin.jar`
+    * **MSSQL** https://sourceforge.net/projects/jtds/files/jtds/
+        * For convenience, you may also use `~/catapult/installers/jtds-1.3.1.jar`
+* **Connecting to:** LocalDev
+    * The firewall allows direct connection to the database server. 
+        * Use the mysql values in `~/secrets/configuration.yml` to connect.
+* **Connecting to:** Test, QC, Production
+    * The firewall does not allow direct connect to the database servers.
+        * Add a New SSH Host in Oracle SQL Developer with the respective environment's web server host public ip address, root username with key file at `~/secrets/id_rsa`.
+            * Create a New Local Port Forward with the respective environment's database server host private ip address and port 3306.
+        * Then add a New Connection with the respective environment's mysql user values in `~/secrets/configuration.yml`.
+            * The hostname will be localhost since we are forwarding the port through our local SSH tunnel.
 
 
 
@@ -858,3 +882,4 @@ Catapult will also be seen throughout local meetups in the Philadelphia and Grea
 1. Atlassian. Comparing Workflows. https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow. Accessed February 15, 2016.
 2. Pantheon. Load and Performance Testing: Before You Begin. https://pantheon.io/docs/articles/load-and-performance-testing/. Accessed February 20, 2016.
 3. Acquia. Acquia Dev Desktop. https://www.acquia.com/products-services/dev-desktop. Accessed February 20, 2016.
+4. Oracle Technology Network. Oracle SQL Developer Migrations: Getting Started. http://www.oracle.com/technetwork/database/migration/omwb-getstarted-093461.html#conf. Accessed March 14, 2016.
