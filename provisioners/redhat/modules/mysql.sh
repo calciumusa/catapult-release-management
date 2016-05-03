@@ -125,7 +125,7 @@ while IFS='' read -r -d '' key; do
                             # keep at least the newest file, in case the database dump is greater than the maximum _sql directory size
                             if [[ "$(basename "$file")" != "${file_newest}" ]]; then
                                 echo -e "\t\t removing /var/www/repositories/apache/${domain}/_sql/${file}..."
-                                sudo rm -f "/var/www/repositories/apache/${domain}/_sql/${file}"
+                                sudo rm --force "/var/www/repositories/apache/${domain}/_sql/${file}"
                             fi
                         fi
                     done
@@ -206,17 +206,24 @@ while IFS='' read -r -d '' key; do
                         # ://www.test.devopsgroup.io.example.com
                         # ://devopsgroup.io.example.com
                         # ://www.devopsgroup.io.example.com
-                        # for software without a cli tool, use sed via the sql file to replace urls
-                        if ([ "${software}" = "codeigniter2" ] || [ "${software}" = "codeigniter3" ] || [ "${software}" = "drupal6" ] || [ "${software}" = "drupal7" ] || [ "${software}" = "silverstripe" ] || [ "${software}" = "xenforo" ]); then
+
+                        # pre-process database sql file
+                        # for software without a cli tool for database url reference replacements, use sed to pre-process sql file and replace url references
+                        if ([ "${software}" = "codeigniter2" ] || [ "${software}" = "codeigniter3" ] || [ "${software}" = "drupal6" ] || [ "${software}" = "drupal7" ] || [ "${software}" = "joomla3" ] || [ "${software}" = "silverstripe" ] || [ "${software}" = "suitecrm7" ] || [ "${software}" = "xenforo" ]); then
                             echo -e "\t* replacing URLs in the database to align with the enivronment..."
-                            sed -r --expression="s/:\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})/:\/\/\1${domain_url}/g" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" > "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
+                            replacements=$(grep --extended-regexp --only-matching --regexp=":\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" | wc --lines)
+                            sed --regexp-extended --expression="s/:\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})/:\/\/\1${domain_url}/g" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" > "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
+                            echo -e "\t* found and replaced ${replacements} occurrences"
                         else
                             cp "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
                         fi
-                        # restore the database
+
+                        # restore the database sql file
                         mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} < "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
-                        rm -f "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
-                        # for software with a cli tool, use cli tool to replace urls
+                        rm --force "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
+
+                        # post-process database
+                        # for software with a cli tool for database url reference replacements, use cli tool to post-process database and replace url references
                         if [[ "${software}" = "wordpress" ]]; then
                             echo -e "\t* replacing URLs in the database to align with the enivronment..."
                             php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" search-replace ":\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})" "://\$1${domain_url}" --regex | sed "s/^/\t\t/"
@@ -231,12 +238,12 @@ while IFS='' read -r -d '' key; do
             echo -e "\t* resetting ${software} admin password..."
             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
                 INSERT INTO ${software_dbprefix}users (uid, pass, mail, status)
-                VALUES ('1',MD5('$(catapult environments.${1}.software.drupal.admin_password)'),'$(catapult company.email)','1')
+                VALUES ('1', MD5('$(catapult environments.${1}.software.drupal.admin_password)'), '$(catapult company.email)', '1')
                 ON DUPLICATE KEY UPDATE name='admin', mail='$(catapult company.email)', pass=MD5('$(catapult environments.${1}.software.drupal.admin_password)'), status='1';
             "
             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
                 INSERT INTO ${software_dbprefix}users_roles (uid, rid)
-                VALUES ('1','3')
+                VALUES ('1', '3')
                 ON DUPLICATE KEY UPDATE rid='3';
             "
         elif [[ "${software}" = "drupal7" ]]; then
@@ -245,20 +252,27 @@ while IFS='' read -r -d '' key; do
             password_hash=$(echo "${password_hash}" | awk '{ print $4 }' | tr -d " " | tr -d "\n")
             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
                 INSERT INTO ${software_dbprefix}users (uid, pass, mail, status)
-                VALUES ('1','${password_hash}','$(catapult company.email)','1')
+                VALUES ('1', '${password_hash}', '$(catapult company.email)', '1')
                 ON DUPLICATE KEY UPDATE name='admin', mail='$(catapult company.email)', pass='${password_hash}', status='1';
             "
             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
                 INSERT INTO ${software_dbprefix}users_roles (uid, rid)
-                VALUES ('1','3')
+                VALUES ('1', '3')
                 ON DUPLICATE KEY UPDATE rid='3';
             "
         elif [[ "${software}" = "joomla3" ]]; then
             echo -e "\t* resetting ${software} admin password..."
             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
                 UPDATE ${software_dbprefix}users
-                SET username='admin', email='$(catapult company.email)', password=MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), block='0'
+                SET username='admin', email='$(catapult company.email)', password=MD5('$(catapult environments.${1}.software.admin_password)'), block='0'
                 WHERE name='Super User';
+            "
+        elif [[ "${software}" = "suitecrm7" ]]; then
+            echo -e "\t* resetting ${software} admin password..."
+            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+                INSERT INTO users (id, user_name, user_hash, is_admin)
+                VALUES ('1', 'admin', MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), '1')
+                ON DUPLICATE KEY UPDATE user_name='admin', user_hash=MD5('$(catapult environments.${1}.software.admin_password)'), is_admin='1';
             "
         elif [[ "${software}" = "wordpress" ]]; then
             echo -e "\t* resetting ${software} admin password..."
@@ -274,4 +288,4 @@ while IFS='' read -r -d '' key; do
 done
 
 # remove .cnf file after usage
-rm -f /catapult/provisioners/redhat/installers/${1}.cnf
+rm --force /catapult/provisioners/redhat/installers/${1}.cnf
