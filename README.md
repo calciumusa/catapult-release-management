@@ -192,7 +192,11 @@ Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#insta
 
 ## Developer Setup ##
 
-Catapult is controlled via Vagrant and the command line of a Developer's computer - below is a list of required software.
+Catapult is controlled via Vagrant and the command line of a Developer's workstation - below is a list of required software that will need to be installed.
+
+* OS X workstations: 100% compatabile and tested
+* Linux workstations: 100% compatabile and tested
+* Windows workstations: Currently limited support
 
 1. **Vagrant**
     * **Using OS X?**
@@ -233,6 +237,17 @@ Catapult is controlled via Vagrant and the command line of a Developer's compute
     * **Using Linux?**
         1. Git commandline is included in the base distribution in most cases.
         1. For a streamlined Git GUI, download and install SmartGit from http://www.syntevo.com/smartgit/
+5. **Terminal**
+    * **Using OS X?**
+        1. The terminal in the base distrubitions are 100% compatible.
+    * **Using Windows?**
+        1. Download and install Cygwin from https://cygwin.com/install.html
+            * Make sure to install the openssh package
+        1. Run all Vagrant commands from within the Cygwin terminal.
+            * Make sure to open Cygwin terminal as Administrator by right-clicking and selecting "Open as Administrator"
+    * **Using Linux?**
+        1. The terminal in the base distrubitions are 100% compatible.
+
 
 Having your team use the same tools is beneficial to streamlining your workflow - below is a list of recommended software tools.
 
