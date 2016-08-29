@@ -216,7 +216,17 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
     * **Using Linux (Fedora, Red Hat, Suse)?**
         1. Download the latest version of Vagrant respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.8.1/vagrant_1.8.1_x86_64.rpm`
         2. Install Vagrant using yum e.g. `sudo yum install vagrant_1.8.1_x86_64.rpm`
-2. **VirtualBox**
+2. **Vagrant Plugins**
+    1. Open your command line and install the following Vagrant plugins:
+        1. `vagrant plugin install vagrant-aws`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-aws.svg)](https://rubygems.org/gems/vagrant-aws)
+        2. `vagrant plugin install vagrant-digitalocean`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-digitalocean.svg)](https://rubygems.org/gems/vagrant-digitalocean) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-digitalocean)
+        3. `vagrant plugin install vagrant-hostmanager`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-hostmanager)
+        4. `vagrant plugin install vagrant-vbguest`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
+3. **VirtualBox**
     * **Using OS X?**
         1. Download and install the latest version of VirtualBox from https://www.virtualbox.org/wiki/Downloads
     * **Using Windows?**
@@ -225,7 +235,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
         1. Download and install the latest version of VirtualBox using Advanced Packaging Tool (APT) `sudo apt-get install virtualbox`
     * **Using Linux (Fedora, Red Hat, Suse)?**
         1. Download and install the latest version of VirtualBox using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
-3. **GPG2**
+4. **GPG2**
     * **Using OS X?**
         1. Download and install GPG Suite from https://gpgtools.org
     * **Using Windows?**
@@ -233,7 +243,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
     * **Using Linux?**
         1. GPG is included in the base distribution in most cases.
         1. If being prompted by the Passphrase GUI Agent, comment out 'use-agent' in `~/.gnupg/gpg.conf`
-4. **Git**
+5. **Git**
     * **Using OS X?**
         1. Git commandline is included in the base distribution in most cases.
         1. For a streamlined Git GUI, download and install SourceTree from https://www.sourcetreeapp.com/
@@ -242,7 +252,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
     * **Using Linux?**
         1. Git commandline is included in the base distribution in most cases.
         1. For a streamlined Git GUI, download and install SmartGit from http://www.syntevo.com/smartgit/
-5. **Terminal**
+6. **Terminal**
     * **Using OS X?**
         1. The terminal in the base distrubitions are 100% compatible.
     * **Using Windows?**
@@ -266,21 +276,11 @@ Catapult is quick to setup. Fork the Github repository and start adding your con
 
 1. **Fork Catapult**
     1. Fork https://github.com/devopsgroup-io/catapult and clone via SourceTree or the git utility of your choice.
-2. **Vagrant Plugins**
-    1. Open your command line and change directory into the newly cloned repository and install the following Vagrant plugins.
-        1. `vagrant plugin install vagrant-aws`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-aws.svg)](https://rubygems.org/gems/vagrant-aws)
-        2. `vagrant plugin install vagrant-digitalocean`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-digitalocean.svg)](https://rubygems.org/gems/vagrant-digitalocean) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-digitalocean)
-        3. `vagrant plugin install vagrant-hostmanager`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-hostmanager)
-        4. `vagrant plugin install vagrant-vbguest`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
-3. **SSH Key Pair**
+2. **SSH Key Pair**
     1. Create a *passwordless* SSH key pair - this will drive authentication for Catapult.
         1. For instructions please see https://help.github.com/articles/generating-ssh-keys/
-        2. Place the newly created *passwordless* SSH key pair id_rsa and id_rsa.pub in the `~/secrets/` folder.
-4. **GPG Key**
+        2. Place the newly created *passwordless* SSH key pair `id_rsa` and `id_rsa.pub` in the `~/secrets/` folder.
+3. **GPG Key**
     1. Generate a GPG key - this will drive encryption for Catapult.
         1. NEVER SHARE THE KEY WITH ANYONE OTHER THAN YOUR TEAM.
         3. Spaces are not permitted and must be at least 20 characters.
@@ -288,7 +288,7 @@ Catapult is quick to setup. Fork the Github repository and start adding your con
         5. Place your newly generated GPG key at `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
         6. It is recommended to print a QR code of the key to distribute to your team, please visit http://educastellano.github.io/qr-code/demo/
         7. Remember! Security is 99% process and 1% technology.
-5. **GPG Edit Mode**
+4. **GPG Edit Mode**
     1. **GPG Edit Mode** is set at `~/secrets/configuration-user.yml["settings"]["gpg_edit"]` (`false` by default) and is used to encrypt your Catapult configuration secrets using your **GPG Key**:
         1. `~/secrets/id_rsa` as `~/secrets/id_rsa.gpg`
         2. `~/secrets/id_rsa.pub` as `~/secrets/id_rsa.pub.gpg`
@@ -300,29 +300,24 @@ Catapult is quick to setup. Fork the Github repository and start adding your con
 
 ## Services Setup ##
 
-Catapult is built with a distributed services model, below are the required third-party services and their sign-up and configuration steps.
+Catapult is designed with a distributed services model, below are the required third-party services and their sign-up and configuration steps.
 
-Service | Description | Monthly Cost
---------|-------------|-------------
-**Cloud Hosting:** | |
-DigitalOcean | Test Web Server | \*$5+
-DigitalOcean | Test Database Server | \*$5+
-DigitalOcean | QC Web Server | \*$5+
-DigitalOcean | QC Database Server | \*$5+
-DigitalOcean | Production Web Server | \*$5+
-DigitalOcean | Production Database Server | \*$5+
-**Repositories:** | |
-Bitbucket | Private Repositories | Free
-GitHub | Public Repositories | Free
-**Continuous Integration:** | |
-Amazon Web Services | Build Server | \*$0+
-Bamboo | Continuous Integration | $10
-**DNS:** | |
-CloudFlare | Cloud DNS | Free
-**Monitoring:** | |
-New Relic | Application, Browser, Server, and *Synthetics Monitoring | Free [*No free tier beyond trial](#partnerships)
-**Total** | | $40+
-\* Depending on load, resources may need to be increased. However, a few websites with builds running irregularly will not incur over a couple dollars more per month.
+Service | Product | Use Case | Monthly Cost
+--------|---------|----------|-------------
+Cloud Hosting | DigitalOcean | Web and Database Servers | \*$30+
+Source Code Repositories | Atlassian Bitbucket | Private Repositories | Free
+Source Code Repositories | GitHub | Public Repositories | Free
+Continuous Integration | Amazon Web Services (AWS) | Build Server | \**$0+
+Continuous Integration | Atlassian Bamboo | Deployment Management | $10
+DNS | CloudFlare | Cloud DNS | Free
+Monitoring | New Relic Application (APM), Browser, Server, and \***Synthetics | Performance and Infrastructure Monitoring | Free
+**Total** | | | $40+
+
+\* Depending on load, resources may need to be increased.
+
+\** New AWS customers receive 1-year free of micro services. Beyond this period, a few websites with builds running irregularly will gennerally incur over a couple dollars more per month.
+
+\*** New Relic [No free tier beyond trial](#partnerships)
 
 1. **Cloud Hosting:**    
     1. **DigitalOcean** sign-up and configuration
@@ -331,7 +326,7 @@ New Relic | Application, Browser, Server, and *Synthetics Monitoring | Free [*No
         2. Go to your DigitalOcean Applications & API Dashboard https://cloud.digitalocean.com/settings/api
             1. Create a Personal Access Token named "Vagrant" and place the token value at `~/secrets/configuration.yml["company"]["digitalocean_personal_access_token"]`
         3. Go to your DigitalOcean Security Dashboard https://cloud.digitalocean.com/settings/security
-            1. Add a new SSH Key named "Vagrant" with your newly created id_rsa.pub from `~/secrets/id_rsa.pub` key 
+            1. Add a new SSH Key named "Vagrant" with your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key 
     2. **Amazon Web Services** (AWS) sign-up and configuration
         1. Create an account https://portal.aws.amazon.com/gp/aws/developer/registration
             * [Free Stuff] Receive Free Tier benefits for the first 12 months after signing up https://aws.amazon.com/ec2/pricing/
@@ -348,7 +343,7 @@ New Relic | Application, Browser, Server, and *Synthetics Monitoring | Free [*No
             2. Select Add Users to Group and add your newly created "Catapult" user.
         6. Go to your AWS EC2 Key Pairs Dashboard https://console.aws.amazon.com/ec2/home#KeyPairs
             1. Click Import Key Pair
-            2. Add your newly created id_rsa.pub from `~/secrets/id_rsa.pub` key
+            2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key
             3. Set the Key pair name to "Catapult"
         7. Go to your AWS EC2 Security Groups Dashboard https://console.aws.amazon.com/ec2/home#SecurityGroups
             1. Select the "default" Group Name
@@ -361,12 +356,12 @@ New Relic | Application, Browser, Server, and *Synthetics Monitoring | Free [*No
         1. Create an account at https://bitbucket.org
             1. Place the username (not the email address) that you used to sign up for Bitbucket at `~/secrets/configuration.yml["company"]["bitbucket_username"]`
             2. Place the password of the account for Bitbucket at `~/secrets/configuration.yml["company"]["bitbucket_password"]`
-        2. Add your newly created id_rsa.pub from `~/secrets/id_rsa.pub` key in https://bitbucket.org/account/user/`your-user-here`/ssh-keys/ named "Catapult"
+        2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key in https://bitbucket.org/account/user/`your-user-here`/ssh-keys/ named "Catapult"
     2. **GitHub** sign-up and configuration
         1. Create an account at https://github.com
             1. Place the username (not the email address) that you used to sign up for GitHub at `~/secrets/configuration.yml["company"]["github_username"]`
             2. Place the password of the account for GitHub at `~/secrets/configuration.yml["company"]["github_password"]`
-        2. Add your newly created id_rsa.pub from `~/secrets/id_rsa.pub key in https://github.com/settings/ssh named "Catapult"
+        2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key in https://github.com/settings/ssh named "Catapult"
 3. **Automated Deployments:**
     2. **Bamboo** sign-up and configuration
         1. Create a Bamboo Cloud account at https://www.atlassian.com/software/bamboo
@@ -576,7 +571,7 @@ All Catapult configuration is stored in `~/secrets/configuration.yml` and encryp
 
 ### Company ###
 
-The exclusive Company entry contains top-level global credentials and company information - all of which will be configured during [Setup Catapult](#setup-catapult).
+The exclusive Company entry contains top-level company information and service credentials, configured during [Setup Catapult](#setup-catapult).
 
 * `name:`
     * required: yes
@@ -587,11 +582,30 @@ The exclusive Company entry contains top-level global credentials and company in
 * `timezone_redhat:`
     * required: yes
         * Your company's timezone in tz database format
-        * See [this list](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html) for a list of valid timezones
+        * See [this list](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html) for a list of valid tz database format timezones
 * `timezone_windows:`
     * required: yes
         * Your company's timezone in Windows Standard Format
-        * See [this list](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html) for a list of valid timezones
+        * See [this list](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html) for a list of valid Windows Standard Format timezones
+
+The remaining keys include credentials to services, ideally rotated on a bi-annual basis. When rotated, all Bamboo builds need to be disabled and then the configuration changes merged into all branches of your Catapult's fork (`develop` > `release` > `master`), then builds enabled.
+
+* `digitalocean_personal_access_token`
+* `bitbucket_username`
+* `bitbucket_password`
+* `github_username`
+* `github_password`
+* `bamboo_base_url`
+* `bamboo_username`
+* `aws_access_key`
+* `aws_secret_key`
+* `bamboo_password`
+* `cloudflare_api_key`
+* `cloudflare_email`
+* `newrelic_admin_api_key`
+* `newrelic_api_key`
+* `newrelic_license_key`
+
 
 ### Environments ###
 
@@ -599,7 +613,7 @@ The setup- and maintenance-free Environments entries contain environment configu
 
 ### Websites ###
 
-Adding websites to Catapult is driven by simple configuration. After establishing a repository at GitHub or Bitbucket, simply add entries to configuration.yml. The entries must be ordered alphabetically by domain name and all entries exist under the single `websites:` key as reflected in this example:
+Adding websites to Catapult is driven by simple configuration. After establishing a repository at GitHub or Bitbucket, simply add entries to `~/secrets/configuration.yml`. The entries must be ordered alphabetically by domain name and all entries exist under the single `websites:` key as reflected in this example:
 ```
 websites:
   apache:
@@ -1020,7 +1034,7 @@ Releases are driven by the devopsgroup.io team and occur when accepting new pull
 
 In addition, the release version number will be prefaced with a `v` (v1.0.0) to conform to standard practice.
 
-As part of a new release, the version number in VERSION.yml will be incremented and git tagged with the same version number along with a [GitHub Release](https://help.github.com/articles/about-releases/).
+As part of a new release, the version number in `~/VERSION.yml` will be incremented and git tagged with the same version number along with a [GitHub Release](https://help.github.com/articles/about-releases/).
 
 
 
