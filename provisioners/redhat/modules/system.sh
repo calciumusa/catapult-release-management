@@ -1,5 +1,8 @@
 source "/catapult/provisioners/redhat/modules/catapult.sh"
 
+
+
+echo -e "\n> system authentication configuration"
 # only allow authentication via ssh key pair
 # assist this number - There were 34877 failed login attempts since the last successful login.
 echo -e "$(lastb | head -n -2 | wc -l) failed login attempts"
@@ -17,13 +20,20 @@ sudo systemctl reload sshd.service
 
 
 
-# send root's mail as company email
-sudo cat > "/root/.forward" << EOF
-"$(echo "${configuration}" | shyaml get-value company.email)"
+echo -e "\n> system email configuration"
+# prevent a billion emails from localdev
+if ([ "${1}" = "dev" ]); then
+    sudo cat "/dev/null" > "/root/.forward"
+# send root's mail as company email from upstream servers
+else
+    sudo cat > "/root/.forward" << EOF
+    "$(echo "${configuration}" | shyaml get-value company.email)"
 EOF
+fi
 
 
 
+echo -e "\n> system hostname configuration"
 # remove pretty hostname
 hostnamectl set-hostname "" --pretty
 
@@ -36,6 +46,7 @@ fi
 
 
 
+echo -e "\n> system swap configuration"
 # get current swaps
 swaps=$(swapon --noheadings --show=NAME)
 swap_volumes=$(cat /etc/fstab | grep "swap" | awk '{print $1}')
@@ -89,6 +100,7 @@ EOF
 
 
 
+echo -e "\n> system known hosts configuration"
 # initialize known_hosts
 sudo mkdir -p ~/.ssh
 sudo touch ~/.ssh/known_hosts
@@ -96,7 +108,7 @@ sudo touch ~/.ssh/known_hosts
 # ssh-keyscan bitbucket.org for a maximum of 10 tries
 i=0
 until [ $i -ge 10 ]; do
-    sudo ssh-keyscan bitbucket.org > ~/.ssh/known_hosts
+    sudo ssh-keyscan -4 -T 10 bitbucket.org > ~/.ssh/known_hosts
     if grep -q "bitbucket\.org" ~/.ssh/known_hosts; then
         echo "ssh-keyscan for bitbucket.org successful"
         break
@@ -109,7 +121,7 @@ done
 # ssh-keyscan github.com for a maximum of 10 tries
 i=0
 until [ $i -ge 10 ]; do
-    sudo ssh-keyscan github.com >> ~/.ssh/known_hosts
+    sudo ssh-keyscan -4 -T 10 github.com >> ~/.ssh/known_hosts
     if grep -q "github\.com" ~/.ssh/known_hosts; then
         echo "ssh-keyscan for github.com successful"
         break
@@ -121,6 +133,7 @@ done
 
 
 
+echo -e "\n> system yum-cron configuration"
 # install yum-cron to apply updates nightly
 sudo yum install -y yum-cron
 sudo systemctl enable yum-cron.service
@@ -133,3 +146,17 @@ sudo sed --in-place --expression='/^apply_updates\s=/s|.*|apply_updates = yes|' 
 sudo sed --in-place --expression='/^emit_via\s=/s|.*|emit_via = None|' /etc/yum/yum-cron.conf
 # restart the service to re-read any new configuration
 sudo systemctl restart yum-cron.service
+
+
+
+echo -e "\n> system kernel configuration"
+kernel_running=$(uname --release)
+kernel_running="kernel-${kernel_running}"
+kernel_staged=$(rpm --last --query kernel | head --lines 1 | awk '{print $1}')
+echo -e "kernel running : ${kernel_running}"
+echo -e "kernel staged  : ${kernel_staged}"
+
+if [ "${kernel_running}" != "${kernel_staged}" ]; then
+    echo -e "REBOOT REQUIRED FOR KERNEL UPDATE"
+    echo -e "* please update to the DigitalOcean GrubLoader for upstream servers https://www.digitalocean.com/community/tutorials/how-to-update-a-digitalocean-server-s-kernel"
+fi
