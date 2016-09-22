@@ -49,11 +49,10 @@ security@devopsgroup.io and not by creating a GitHub issue.
 
 ## Platform Overview ##
 
-Catapult leverages the following technologies and technology services to implement key components of DevOps.
+Catapult orchestrates the following technologies and technology services to implement key components of DevOps.
 
-* **Configuration Management**
-    * Catapult
-    * Encryption - GnuPG
+* **Security Management**
+    * Configuration Secrets - GnuPG Encryption
 * **Source Code Management**
     * Catapult - Git (via GitHub)
     * Websites - Git (via GitHub or Bitbucket)
@@ -61,7 +60,7 @@ Catapult leverages the following technologies and technology services to impleme
     * Vagrant
 * **Development Virtualization**
     * VirtualBox
-* **Cloud Hosting**
+* **Cloud Virtualization**
     * DigitalOcean
 * **DNS Management**
     * CloudFlare
@@ -69,10 +68,10 @@ Catapult leverages the following technologies and technology services to impleme
     * Automated Deployments - Bamboo
     * Build Server - Amazon Web Services (AWS)
 * **Monitoring**
-    * Server Resources and Uptime - New Relic Servers
-    * Application - New Relic APM
-    * Browser - New Relic Browsers
-    * Website Uptime - New Relic Synthetics
+    * Server Resources - New Relic Servers
+    * Application Performance - New Relic APM
+    * Browser Performance - New Relic Browsers
+    * Website Availability - New Relic Synthetics
 
 
 
@@ -131,7 +130,7 @@ Dashboard - Control                           | CLI                            |
 Dashboard - Monitor                           | Web                            | Web                           | Web
 Managed Public Git Website Repository Support | GitHub & Bitbucket             | :x:                           | :x:
 Managed DNS                                   | CloudFlare                     | :x:                           | :x:
-Managed Free HTTPS/SSL                        | CloudFlare                     | :x:                           | :x:
+Managed Free HTTPS/SSL                        | CloudFlare/Let's Encrypt       | :x:                           | :x:
 Managed Server Monitoring                     | New Relic                      | :x:                           | Proprietary
 Managed Application Error Logs                | New Relic                      | Proprietary                   | Proprietary
 Managed Application Performance Monitoring    | New Relic                      | :x:                           | :x:
@@ -547,7 +546,7 @@ Once the Web and Database Servers are up and running, it's then time to configur
 
 Catapult follows Gitflow for its **infrastructure configuration** *and* **website development** model - each environment runs a specific branch and changesets are introduced into each environment by pull requests from one branch to the next.
 
-<img src="https://www.atlassian.com/git/images/tutorials/collaborating/comparing-workflows/gitflow-workflow/05.svg" alt="Gitflow" width="600">
+<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/catapult/installers/images/catapult_release_management.png" alt="Catapult Release Management">
 <sup>[1](#references)</sup>
 
 
@@ -674,7 +673,7 @@ The following options are available:
         * manages software database migrations
         * manages software database backups and restores intelligently via git
         * manages software url references in database
-        * manages software admin account integrity
+        * manages software admininistrator account integrity
     * option: `software: codeigniter2`
     * option: `software: codeigniter3`
     * option: `software: drupal6`
@@ -987,7 +986,7 @@ GitHub            | Repository hosting                       | [:question:](http
 
 ## HTTPS and SSL Certificates ##
 
-Catapult manages free HTTPS compliments of Cloudflare, however, depending on your compliance needs you may need to purchase SSL certificates unique to your orginazation. Once you're aware of your compliance responsiblity, you can then make a decision for purchasing and implementing SSL certificates. Catapult will soon incorporate the ability to add custom SSL certificates.
+Catapult manages free HTTPS compliments of Cloudflare and Let's Encrypt, however, depending on your compliance needs you may need to purchase SSL certificates unique to your orginazation. Once you're aware of your compliance responsiblity, you can then make a decision for purchasing and implementing SSL certificates. Catapult will soon incorporate the ability to add custom SSL certificates.
 
 Feature                                        | Domain Validation (DV certificates)                                                          | Organization Validation (OV certificates)                                                   | Extended Validation (EV certificates)
 -----------------------------------------------|----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------
@@ -1081,7 +1080,6 @@ Catapult is making the conference tour! We plan to attend the following conferen
 Catapult will also be seen throughout local meetups in the Philadelphia and Greater Philadelphia area! Get a chance to meet the team and engage at a personal level.
 
 * [Technical.ly Philly](http://www.meetup.com/Technically-Philly/) 6k+ technologists
-* [Princeton Tech](http://www.meetup.com/Princeton-Tech/) 4.5k+ technologists
 * [Tech in Motion Philly](http://www.meetup.com/TechinMotionPhilly/) 4k+ technologists
 * [Philadelphia WordPress Meetup Group](http://www.meetup.com/philadelphia-wordpress-meetup-group/) 1.5k+ technologists
 * [Philly DevOps](http://www.meetup.com/PhillyDevOps/) 1k+ technologists
