@@ -978,7 +978,9 @@ module Catapult
             else
               instance = nil
               @api_aws.search("reservationSet item instancesSet").each do |key|
-                if key.at("item tagSet item value").text == "#{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}"
+                if key.at("item tagSet item value").text == nil
+                  instance = nil
+                elsif key.at("item tagSet item value").text == "#{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}"
                   instance = key
                 end
               end
@@ -992,6 +994,10 @@ module Catapult
             # id
             if instance != nil
               row.push(instance.at("item instanceId").text.ljust(11))
+              # vagrant-aws is broken, so let's write out the id of the EC2 instance ourselves
+              path = ".vagrant/machines/#{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}/aws"
+              FileUtils.mkpath("#{path}") unless File.exists?("#{path}")
+              File.write("#{path}/id", instance.at("item instanceId").text)
             end
             # size
             if instance != nil
