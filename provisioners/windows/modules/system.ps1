@@ -1,6 +1,16 @@
 . "c:\catapult\provisioners\windows\modules\catapult.ps1"
 
 
+echo "`n=> Configuring security policy"
+# remove the PasswordComplexity settting to allow for user accounts to be created for iis and the force_auth option
+# we'll require our own, 10 character, 20 maximum password
+$security_policy = "c:\catapult\provisioners\windows\installers\temp\security_policy.cfg"
+secedit /export /cfg $security_policy
+(gc $security_policy).replace("PasswordComplexity = 1", "PasswordComplexity = 0") | Out-File $security_policy
+secedit /configure /db c:\windows\security\local.sdb /cfg $security_policy /areas SECURITYPOLICY
+rm -force $security_policy -confirm:$false
+
+
 echo "`n=> Configuring hostname"
 # set the base hostname limited by the 15 character limit (UGH)
 if ($($args[0].Text.Length) -gt 4) {
@@ -8,7 +18,7 @@ if ($($args[0].Text.Length) -gt 4) {
 } else {
     $hostname = "$($args[0])-win"
 }
-# set hostname, 
+# set hostname
 if ($($args[3]) -eq "iis") {
     if ($env:computername.ToLower() -ne "$($hostname)") {
         Rename-Computer -Force -NewName "$($hostname)"
@@ -18,7 +28,7 @@ if ($($args[3]) -eq "iis") {
         Rename-Computer -Force -NewName "$($hostname)-mssql"
     }
 }
-# echo datetimezone
+# echo hostname
 echo $env:computername
 
 
@@ -99,11 +109,41 @@ echo "`n=> Installing Web Platform Installer (This may take a while...)"
 # http://www.iis.net/learn/install/web-platform-installer/web-platform-installer-v4-command-line-webpicmdexe-rtw-release
 if (-not(test-path -path "c:\Program Files\Microsoft\Web Platform Installer\WebpiCmd-x64.exe")) {
     # https://github.com/fdcastel/psunattended/blob/master/PSUnattended.ps1
-    start-process -filepath msiexec -argumentlist "/i ""c:\catapult\provisioners\windows\installers\WebPlatformInstaller_amd64_en-US.msi"" /q ALLUSERS=1 REBOOT=ReallySuppress" -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
+    start-process -filepath msiexec -argumentlist "/i c:\catapult\provisioners\windows\installers\WebPlatformInstaller_amd64_en-US.msi /q ALLUSERS=1 REBOOT=ReallySuppress" -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
     get-content $provision
     get-content $provisionError
 } else {
     echo "- Installed, skipping..."
+}
+
+
+echo "`n=> Configuring SSH"
+# initialize id_rsa
+new-item "c:\Users\$env:username\.ssh\id_rsa" -type file -force
+get-content "c:\catapult\secrets\id_rsa" | add-content "c:\Users\$env:username\.ssh\id_rsa"
+# initialize known_hosts
+new-item "c:\Users\$env:username\.ssh\known_hosts" -type file -force
+# ssh-keyscan bitbucket.org for a maximum of 10 tries
+for ($i=0; $i -le 10; $i++) {
+    start-process -filepath "c:\Program Files\Git\usr\bin\ssh-keyscan.exe" -argumentlist ("-4 -T 10 bitbucket.org") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
+    if ((get-content $provision) -match "bitbucket\.org") {
+        echo "ssh-keyscan for bitbucket.org successful"
+        get-content $provision | add-content "c:\Users\$env:username\.ssh\known_hosts"
+        break
+    } else {
+        echo "ssh-keyscan for bitbucket.org failed, retrying!"
+    }
+}
+# ssh-keyscan github.com for a maximum of 10 tries
+for ($i=0; $i -le 10; $i++) {
+    start-process -filepath "c:\Program Files\Git\usr\bin\ssh-keyscan.exe" -argumentlist ("-4 -T 10 github.com") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
+    if ((get-content $provision) -match "github\.com") {
+        echo "ssh-keyscan for github.com successful"
+        get-content $provision | add-content "c:\Users\$env:username\.ssh\known_hosts"
+        break
+    } else {
+        echo "ssh-keyscan for github.com failed, retrying!"
+    }
 }
 
 
