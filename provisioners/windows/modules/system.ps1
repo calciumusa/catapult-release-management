@@ -1,6 +1,16 @@
 . "c:\catapult\provisioners\windows\modules\catapult.ps1"
 
 
+echo "`n=> Configuring security policy"
+# remove the PasswordComplexity settting to allow for user accounts to be created for iis and the force_auth option
+# we'll require our own, 10 character, 20 maximum password
+$security_policy = "c:\catapult\provisioners\windows\installers\temp\security_policy.cfg"
+secedit /export /cfg $security_policy
+(gc $security_policy).replace("PasswordComplexity = 1", "PasswordComplexity = 0") | Out-File $security_policy
+secedit /configure /db c:\windows\security\local.sdb /cfg $security_policy /areas SECURITYPOLICY
+rm -force $security_policy -confirm:$false
+
+
 echo "`n=> Configuring hostname"
 # set the base hostname limited by the 15 character limit (UGH)
 if ($($args[0].Text.Length) -gt 4) {
@@ -109,16 +119,16 @@ if (-not(test-path -path "c:\Program Files\Microsoft\Web Platform Installer\Webp
 
 echo "`n=> Configuring SSH"
 # initialize id_rsa
-new-item "$home\.ssh\id_rsa" -type file -force
-get-content "c:\catapult\secrets\id_rsa" | add-content "$home\.ssh\id_rsa"
+new-item "c:\Users\$env:username\.ssh\id_rsa" -type file -force
+get-content "c:\catapult\secrets\id_rsa" | add-content "c:\Users\$env:username\.ssh\id_rsa"
 # initialize known_hosts
-new-item "$home\.ssh\known_hosts" -type file -force
+new-item "c:\Users\$env:username\.ssh\known_hosts" -type file -force
 # ssh-keyscan bitbucket.org for a maximum of 10 tries
 for ($i=0; $i -le 10; $i++) {
     start-process -filepath "c:\Program Files\Git\usr\bin\ssh-keyscan.exe" -argumentlist ("-4 -T 10 bitbucket.org") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
     if ((get-content $provision) -match "bitbucket\.org") {
         echo "ssh-keyscan for bitbucket.org successful"
-        get-content $provision | add-content "$home\.ssh\known_hosts"
+        get-content $provision | add-content "c:\Users\$env:username\.ssh\known_hosts"
         break
     } else {
         echo "ssh-keyscan for bitbucket.org failed, retrying!"
@@ -129,7 +139,7 @@ for ($i=0; $i -le 10; $i++) {
     start-process -filepath "c:\Program Files\Git\usr\bin\ssh-keyscan.exe" -argumentlist ("-4 -T 10 github.com") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
     if ((get-content $provision) -match "github\.com") {
         echo "ssh-keyscan for github.com successful"
-        get-content $provision | add-content "$home\.ssh\known_hosts"
+        get-content $provision | add-content "c:\Users\$env:username\.ssh\known_hosts"
         break
     } else {
         echo "ssh-keyscan for github.com failed, retrying!"

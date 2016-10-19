@@ -34,18 +34,19 @@ foreach ($domain in $domains) {
     # try and create the zone and let cloudflare handle if it already exists
     $data = @{
         "name" = "$($domain_levels[-2]).$($domain_levels[-1])";
-        "jumpstart" = "false"
+        "jumpstart" = ([System.Convert]::ToBoolean("false"))
     }
     $headers = @{
         "X-Auth-Email" = $configuration.company.cloudflare_email;
         "X-Auth-Key" = $configuration.company.cloudflare_api_key;
     }
     try {
-        $cloudflare_zone = invoke-webrequest -Method Post -Uri "https://api.cloudflare.com/client/v4/zones" `
+        $result = invoke-webrequest -Method Post -Uri "https://api.cloudflare.com/client/v4/zones" `
             -ContentType "application/json" `
             -Headers $headers `
             -Body (ConvertTo-Json $data)
-        $cloudflare_zone_status = $cloudflare_zone.StatusCode
+        $cloudflare_zone = $result.Content
+        $cloudflare_zone_status = $result.StatusCode
     } catch {
         $result = $_.Exception.Response.GetResponseStream()
         $reader = New-Object System.IO.StreamReader($result)
