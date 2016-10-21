@@ -1,6 +1,33 @@
 . "c:\catapult\provisioners\windows\modules\catapult.ps1"
 
 
+echo "`n=> Getting Windows license status"
+Get-CimInstance -ClassName SoftwareLicensingProduct | where PartialProductKey | select `
+    Name,
+    Description,
+    @{Name='GenuineStatus';Exp={
+        switch ($_.GenuineStatus)
+        {
+            0 {'Non-Genuine'}
+            1 {'Genuine'}
+            Default {'Undetected'}
+        }
+    }},
+    @{Name='LicenseStatus';Exp={
+        # https://msdn.microsoft.com/en-us/library/cc534596%28v=vs.85%29.aspx
+        switch ($_.LicenseStatus) {
+            0 {'Unlicensed'}
+            1 {'licensed'}
+            2 {'OOBGrace'}
+            3 {'OOTGrace'}
+            4 {'NonGenuineGrace'}
+            5 {'Notification'}
+            6 {'ExtendedGrace'}
+            Default {'Undetected'}
+        }
+    }} | Format-List
+
+
 echo "`n=> Configuring security policy"
 # remove the PasswordComplexity settting to allow for user accounts to be created for iis and the force_auth option
 # we'll require our own, 10 character, 20 maximum password
@@ -150,5 +177,19 @@ for ($i=0; $i -le 10; $i++) {
 
 
 echo "`n=> Checking for Windows Updates (This may take a while...)"
+# configure windows update settings
+$windows_update_settings = (new-object -com "Microsoft.Update.AutoUpdate").Settings
+# 1 - Never check for updates
+# 2 - Check for updates but let me choose whether to download and install them
+# 3 - Download updates but let me choose whether to install them
+# 4 - Install updates automatically
+$windows_update_settings.NotificationLevel=3
+$windows_update_settings.ScheduledInstallationDay=0
+$windows_update_settings.ScheduledInstallationTime=3
+$windows_update_settings.IncludeRecommendedUpdates=$true
+$windows_update_settings.NonAdministratorsElevated=$true
+$windows_update_settings.FeaturedUpdatesEnabled=$true
+$windows_update_settings.save()
+$windows_update_settings
 # install latest updates
 Get-WUInstall -WindowsUpdate -AcceptAll -IgnoreReboot

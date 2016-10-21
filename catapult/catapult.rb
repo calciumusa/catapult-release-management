@@ -60,9 +60,6 @@ module Catapult
         puts "\n"
         puts "Please correct the error then re-run your vagrant command."
         puts "See https://github.com/devopsgroup-io/catapult for more information."
-        if File.exist?('.lock')
-          File.delete('.lock')
-        end
         exit 1
       end
     end
@@ -130,8 +127,15 @@ module Catapult
 
 
     # locking in order to prevent multiple executions occurring at once (e.g. competing command line and Bamboo executions)
-    if File.exist?('.lock')
-      catapult_exception("The .lock file is present in this directory. This indicates that another process, such as provisioning, may be under way in another session or that a process ended unexpectedly. Once verifying that no conflict exists, remove the .lock file and try again.")
+    begin
+      Timeout::timeout(60) do
+        while File.exist?('.lock')
+           puts "Waiting for another Catapult process to finish so that we can safely continue...".color(Colors::YELLOW)
+           sleep 5
+        end
+      end
+    rescue Timeout::Error
+      catapult_exception("Wating took longer than expected. The .lock file is present in this directory. This indicates that another Catapult process may have hung or ended unexpectedly. Once verifying that no conflict exists, remove the .lock file and try again.")
     end
     FileUtils.touch('.lock')
 
@@ -1027,17 +1031,20 @@ module Catapult
             # this means there are no instances
             instance = nil
           else
-            instance = nil
             @api_aws.search("reservationSet item instancesSet").each do |key|
+              # default value
+              instance = nil
               # names, or tags, are not required, so check for nil first
               if key.at("item tagSet item value") == nil
-                instance = nil
+                next
               elsif key.at("item tagSet item value").text == "#{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}"
                 # any other status than running can not be trusted
                 if key.at("item instanceState name").text == "running"
                   instance = key
+                  break
                 else
                   instance = nil
+                  break
                 end
               end
             end
