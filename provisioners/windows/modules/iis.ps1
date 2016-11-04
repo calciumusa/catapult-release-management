@@ -16,7 +16,8 @@ if (Get-Module -ListAvailable -Name servermanager) {
     echo "servermanager failed to load"
 }
 
-echo "`n=> Installing web-webserver (This may take a while...)"
+
+echo "`n=> Installing web-webserver (This may take a while)..."
 add-windowsfeature web-webserver -includeallsubfeature -logpath c:\catapult\provisioners\windows\logs\add-windowsfeature_web-webserver.log
 
 
@@ -34,190 +35,171 @@ if (Get-Module -ListAvailable -Name webadministration) {
 }
 
 
-echo "`n=> Configuring git repositories (This may take a while...)"
-if (-not($configuration.websites.iis)) {
-
-    echo "There are no websites in iis, nothing to do."
-
+echo "`n=> Configuring IIS"
+# remove revealing headers
+$headers = @{ 
+    "RESPONSE_X-AspNet-Version" = "ASP.NET";
+    "RESPONSE_X-AspNetMvc-Version" = "ASP.NET";
+    "RESPONSE_X-Powered-By" = "ASP.NET";
+    "RESPONSE_SERVER" = "Microsoft-IIS";
+}
+foreach ($header in $headers.GetEnumerator()) {
+    if (-not(get-webconfigurationproperty -pspath "iis:\" -filter "system.webServer/rewrite/outboundrules/rule[@name='$($header.Name)']" -name ".")) {
+        add-webconfigurationproperty -pspath "iis:\" -filter "system.webServer/rewrite/outboundrules" -name "." -value @{name=$($header.Name)}
+    }
+    set-webconfigurationproperty -pspath "iis:\" -filter "system.webServer/rewrite/outboundRules/rule[@name='$($header.Name)']/match" -name "serverVariable" -value "$($header.Name)"
+    set-webconfigurationproperty -pspath "iis:\" -filter "system.webServer/rewrite/outboundRules/rule[@name='$($header.Name)']/match" -name "pattern" -value ".*"
+    set-webconfigurationproperty -pspath "iis:\" -filter "system.webServer/rewrite/outboundRules/rule[@name='$($header.Name)']/action" -name "type" -value "Rewrite"
+    set-webconfigurationproperty -pspath "iis:\" -filter "system.webServer/rewrite/outboundRules/rule[@name='$($header.Name)']/action" -name "value" -value "$($header.Value)"
+}
+# display errors on screen using the default recommendations for development and production
+if ($($args[0]) -eq "dev") {
+    set-webconfigurationproperty -filter "system.webserver/httperrors" -pspath "MACHINE/WEBROOT/APPHOST" -name "errorMode" -value "Detailed"
 } else {
+    set-webconfigurationproperty -filter "system.webserver/httperrors" -pspath "MACHINE/WEBROOT/APPHOST" -name "errorMode" -value "DetailedLocalOnly"
+}
+# create IIS_AUTH group for IIS basic auth users
+$connection = [ADSI]("WinNT://$env:COMPUTERNAME")
+if (-not($connection.children | where { $_.schemaClassName -eq "group" } | where { $_.Name -eq "IIS_AUTH" })) {
+    $group = $connection.create("group", "IIS_AUTH")
+    $group.setinfo()
+    $group.description = "Group used by IIS basic authentication users."
+    $group.setinfo()
+}
+# remove all users in the IIS_AUTH group
+$group = $connection.Children.Find("IIS_AUTH", "group")
+$group.psbase.invoke('members')  | ForEach {
+  $user = $_.GetType().InvokeMember("Name","GetProperty",$Null,$_,$Null)
+  $connection.delete("user", $user) 
+}
 
-    # initialize id_rsa
-    new-item "c:\Program Files (x86)\Git\.ssh\id_rsa" -type file -force
-    get-content "c:\catapult\secrets\id_rsa" | add-content "c:\Program Files (x86)\Git\.ssh\id_rsa"
 
-    # initialize known_hosts
-    new-item "c:\Program Files (x86)\Git\.ssh\known_hosts" -type file -force
-    # ssh-keyscan bitbucket.org for a maximum of 10 tries
-    for ($i=0; $i -le 10; $i++) {
-        start-process -filepath "c:\Program Files (x86)\Git\bin\ssh-keyscan.exe" -argumentlist ("-4 -T 10 bitbucket.org") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-        if ((get-content $provision) -match "bitbucket\.org") {
-            echo "ssh-keyscan for bitbucket.org successful"
-            get-content $provision | add-content "c:\Program Files (x86)\Git\.ssh\known_hosts"
-            break
+echo "`n=> Removing SSL Bindings"
+if (get-childitem -path IIS:\SslBindings) {
+    $sslbindings = get-childitem -path IIS:\SslBindings
+    foreach ($sslbinding in $sslbindings) {
+        if ($sslbinding.IPAddress -and $sslbinding.Port -and $sslbinding.Host) {
+            remove-item ("IIS:\SslBindings\{0}!{1}!{2}" -f $sslbinding.IPAddress,$sslbinding.Port,$sslbinding.Host) -recurse
+        } elseif ($sslbinding.IPAddress -and $sslbinding.Port) {
+            remove-item ("IIS:\SslBindings\{0}!{1}" -f $sslbinding.IPAddress,$sslbinding.Port) -recurse
+        } elseif ($sslbinding.Port -and $sslbinding.Host) {
+            remove-item ("IIS:\SslBindings\!{0}!{1}" -f $sslbinding.Port,$sslbinding.Host) -recurse
         } else {
-            echo "ssh-keyscan for bitbucket.org failed, retrying!"
+            echo "could not remove the ssl binding"
+            write-host ($sslbinding | format-list | out-string)
         }
     }
-    # ssh-keyscan github.com for a maximum of 10 tries
-    for ($i=0; $i -le 10; $i++) {
-        start-process -filepath "c:\Program Files (x86)\Git\bin\ssh-keyscan.exe" -argumentlist ("-4 -T 10 github.com") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-        if ((get-content $provision) -match "github\.com") {
-            echo "ssh-keyscan for github.com successful"
-            get-content $provision | add-content "c:\Program Files (x86)\Git\.ssh\known_hosts"
-            break
-        } else {
-            echo "ssh-keyscan for github.com failed, retrying!"
-        }
-    }
+}
 
-    # keep linux lf (line feed) line endings instead of windows converting to crlf (carriage return line feed <- haha, typewriter)
-    start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("config --global core.autocrlf false") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
 
-    # clone/pull repositories into c:\inetpub\repositories\iis\
-    if (-not(test-path -path "c:\inetpub\repositories\iis")) {
-        new-item -itemtype directory -force -path "c:\inetpub\repositories\iis"
+echo "`n=> Removing websites"
+if (get-childitem -path IIS:\Sites | where-object {$_.Name -ne "Default Web Site"}) {
+    $websites = get-childitem -path IIS:\Sites | where-object {$_.Name -ne "Default Web Site"}
+    foreach ($website in $websites) {
+        remove-item ("IIS:\Sites\{0}" -f $website.Name) -recurse
     }
-    foreach ($instance in $configuration.websites.iis) {
-        if (test-path ("c:\inetpub\repositories\iis\{0}\.git" -f $instance.domain) ) {
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} config --global user.name {1}" -f $instance.domain,"Catapult") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} config --global user.email {1}" -f $instance.domain,$configuration.company.email) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} config core.packedGitLimit 128m" -f $instance.domain) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} config core.packedGitWindowSize 128m" -f $instance.domain) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} config pack.deltaCacheSize 128m" -f $instance.domain) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} config pack.packSizeLimit 128m" -f $instance.domain) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} config pack.windowMemory 128m" -f $instance.domain) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} reset -q --hard HEAD --" -f $instance.domain) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} checkout ." -f $instance.domain) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} clean -fd" -f $instance.domain) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} checkout {1}" -f $instance.domain,$configuration.environments.$($args[0]).branch) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} fetch" -f $instance.domain) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} pull origin {1}" -f $instance.domain,$configuration.environments.$($args[0]).branch) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("-C c:\inetpub\repositories\iis\{0} submodule update --init --recursive" -f $instance.domain) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-        } else {
-            start-process -filepath "c:\Program Files (x86)\Git\bin\git.exe" -argumentlist ("clone --recursive --branch {1} {2} c:\inetpub\repositories\iis\{0}" -f $instance.domain,$configuration.environments.$($args[0]).branch,$instance.repo) -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
-            get-content $provision
-            get-content $provisionError
-        }
-    }
-    # create an array of domains
-    $domains = @()
-    foreach ($instance in $configuration.websites.iis) {
-        $domains += $instance.domain
-    }
-    # cleanup directories from domains array
-    get-childitem "c:\inetpub\repositories\iis\*" | ?{ $_.PSIsContainer } | foreach-object {
-        $domain = split-path $_.FullName -leaf
-        if (-not($domains -contains $domain)) {
-            echo "`nWebsite does not exist in secrets/configuration.yml, removing $domain ..."
-            remove-item -recurse -force $_.FullName
-        }
-    }
+}
 
-    echo "`n=> Removing SSL Bindings"
-    if (get-childitem -path IIS:\SslBindings) {
-        $sslbindings = get-childitem -path IIS:\SslBindings
-        foreach ($sslbinding in $sslbindings) {
-            if ($sslbinding.IPAddress -and $sslbinding.Port -and $sslbinding.Host) {
-                remove-item ("IIS:\SslBindings\{0}!{1}!{2}" -f $sslbinding.IPAddress,$sslbinding.Port,$sslbinding.Host) -recurse
-            } elseif ($sslbinding.IPAddress -and $sslbinding.Port) {
-                remove-item ("IIS:\SslBindings\{0}!{1}" -f $sslbinding.IPAddress,$sslbinding.Port) -recurse
-            } elseif ($sslbinding.Port -and $sslbinding.Host) {
-                remove-item ("IIS:\SslBindings\!{0}!{1}" -f $sslbinding.Port,$sslbinding.Host) -recurse
-            } else {
-                echo "could not remove the ssl binding"
-                write-host ($sslbinding | format-list | out-string)
-            }
-        }
-    }
 
-    echo "`n=> Removing websites"
-    if (get-childitem -path IIS:\Sites | where-object {$_.Name -ne "Default Web Site"}) {
-        $websites = get-childitem -path IIS:\Sites | where-object {$_.Name -ne "Default Web Site"}
-        foreach ($website in $websites) {
-            remove-item ("IIS:\Sites\{0}" -f $website.Name) -recurse
-        }
+echo "`n=> Removing application pools"
+if (get-childitem -path IIS:\AppPools | where-object {$_.Name -ne "DefaultAppPool"}) {
+    $apppools = get-childitem -path IIS:\AppPools | where-object {$_.Name -ne "DefaultAppPool"}
+    foreach ($apppool in $apppools) {
+        remove-item ("IIS:\AppPools\{0}" -f $apppool.Name) -recurse
     }
+}
 
-    echo "`n=> Removing application pools"
-    if (get-childitem -path IIS:\AppPools | where-object {$_.Name -ne "DefaultAppPool"}) {
-        $apppools = get-childitem -path IIS:\AppPools | where-object {$_.Name -ne "DefaultAppPool"}
-        foreach ($apppool in $apppools) {
-            remove-item ("IIS:\AppPools\{0}" -f $apppool.Name) -recurse
-        }
-    }
 
-    echo "`n=> Creating application pools"
-    foreach ($instance in $configuration.websites.iis) {
-        new-item ("IIS:\AppPools\$($args[0]).{0}" -f $instance.domain)
-        set-itemproperty ("IIS:\AppPools\$($args[0]).{0}" -f $instance.domain) managedRuntimeVersion v4.0
-    }
-
-    echo "`n=> Creating websites"
-    foreach ($instance in $configuration.websites.iis) {
+echo "`n=> Creating application pools"
+foreach ($instance in $configuration.websites.iis) {
+    if ($($args[0]) -eq "production") {
+        $domain = ("{0}" -f $instance.domain)
+    } else {
         $domain = ("$($args[0]).{0}" -f $instance.domain)
-        if ($instance.webroot) {
-            $instance.webroot = $instance.webroot.Replace("/","\")
-        }
+    }
+    new-item ("IIS:\AppPools\{0}" -f $domain)
+    set-itemproperty ("IIS:\AppPools\{0}" -f $domain) managedRuntimeVersion v4.0
+
+    # grant application pool user permissions to website directory
+    $acl = Get-Acl -Path ("c:\inetpub\repositories\iis\{0}\{1}" -f $instance.domain,$instance.webroot)
+    $perm = ("IIS AppPool\{0}" -f $domain), 'Read,Modify', 'ContainerInherit, ObjectInherit', 'None', 'Allow' 
+    $rule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList $perm
+    $acl.SetAccessRule($rule) 
+    $acl | Set-Acl -Path ("c:\inetpub\repositories\iis\{0}\{1}" -f $instance.domain,$instance.webroot)
+}
+
+
+echo "`n=> Creating websites"
+foreach ($instance in $configuration.websites.iis) {
+    if ($($args[0]) -eq "production") {
+        $domain = ("{0}" -f $instance.domain)
+    } else {
+        $domain = ("$($args[0]).{0}" -f $instance.domain)
+    }
+    if ($instance.webroot) {
+        $instance.webroot = $instance.webroot.Replace("/","\")
+    }
+    # 80
+    new-website -name ("{0}" -f $domain) -hostheader ("{0}" -f $domain) -port 80 -physicalpath ("c:\inetpub\repositories\iis\{0}\{1}" -f $instance.domain,$instance.webroot) -applicationpool ("{0}" -f $domain) -force
+    # 80:www
+    new-webbinding -name ("{0}" -f $domain) -hostheader ("www.{0}" -f $domain) -port 80
+    # 443
+    new-webbinding -name ("{0}" -f $domain) -hostheader ("{0}" -f $domain) -port 443 -protocol https -sslflags 1
+    # 443:www
+    new-webbinding -name ("{0}" -f $domain) -hostheader ("www.{0}" -f $domain) -port 443 -protocol https -sslflags 1
+    # add listeners for domain_tld_override if applicable
+    if ($instance.domain_tld_override) {
         # 80
-        new-website -name ("$($args[0]).{0}" -f $instance.domain) -hostheader ("$($args[0]).{0}" -f $instance.domain) -port 80 -physicalpath ("c:\inetpub\repositories\iis\{0}\{1}" -f $instance.domain,$instance.webroot) -applicationpool ("$($args[0]).{0}" -f $instance.domain) -force
-
+        new-webbinding -name ("{0}" -f $domain) -hostheader ("{0}.{1}" -f $domain,$instance.domain_tld_override) -port 80
         # 80:www
-        new-webbinding -name ("$($args[0]).{0}" -f $instance.domain) -hostheader ("www.$($args[0]).{0}" -f $instance.domain) -port 80
-
+        new-webbinding -name ("{0}" -f $domain) -hostheader ("www.{0}.{1}" -f $domain,$instance.domain_tld_override) -port 80
         # 443
-        new-webbinding -name ("$($args[0]).{0}" -f $instance.domain) -hostheader ("$($args[0]).{0}" -f $instance.domain) -port 443 -protocol https -sslflags 1
-
+        new-webbinding -name ("{0}" -f $domain) -hostheader ("{0}.{1}" -f $domain,$instance.domain_tld_override) -port 443 -protocol https -sslflags 1
         # 443:www
-        new-webbinding -name ("$($args[0]).{0}" -f $instance.domain) -hostheader ("www.$($args[0]).{0}" -f $instance.domain) -port 443 -protocol https -sslflags 1
-
-        # set website user account
-        set-itemproperty ("$($args[0]).{0}" -f $instance.domain) -name username -value "$env:username"
-        set-itemproperty ("$($args[0]).{0}" -f $instance.domain) -name password -value "$env:username"
+        new-webbinding -name ("{0}" -f $domain) -hostheader ("www.{0}.{1}" -f $domain,$instance.domain_tld_override) -port 443 -protocol https -sslflags 1
     }
+    # manage http basic authentication
+    if (($instance.force_auth) -and (-not($instance.force_auth_exclude -contains $($args[0])))) {
+        # only create the IIS_AUTH user if it does not yet exist (websites can have same force_auth value and user/pass are made the same)
+        $connection = [ADSI]("WinNT://$env:COMPUTERNAME")
+        if (-not($connection.children | where { $_.schemaClassName -eq "user" } | where { $_.Name -eq $instance.force_auth })) {
+            $user = $connection.create("user", $instance.force_auth)
+            $user.SetPassword($instance.force_auth)
+            $user.SetInfo()
+            $user.FullName = $instance.force_auth
+            $user.SetInfo()
+            $user.UserFlags = 64 + 65536 # ADS_UF_PASSWD_CANT_CHANGE + ADS_UF_DONT_EXPIRE_PASSWD
+            $user.SetInfo()
+            $group = $connection.Children.Find("IIS_AUTH", "group")
+            $group.Add("WinNT://$($env:COMPUTERNAME)/$($instance.force_auth)")
+            set-webconfigurationproperty -filter "system.webServer/security/authentication/anonymousAuthentication" -pspath "IIS:\" -location ("{0}" -f $domain) -name Enabled -value False
+            set-webconfigurationproperty -filter "system.webServer/security/authentication/basicAuthentication" -pspath "IIS:\" -location ("{0}" -f $domain) -name Enabled -value True
+        }
+    } else {
+        set-webconfigurationproperty -filter "system.webServer/security/authentication/anonymousAuthentication" -pspath "IIS:\" -location ("{0}" -f $domain) -name Enabled -value True
+        set-webconfigurationproperty -filter "system.webServer/security/authentication/basicAuthentication" -pspath "IIS:\" -location ("{0}" -f $domain) -name Enabled -value False
+    }
+}
 
-    echo "`n=> Creating SSL Bindings"
-    foreach ($instance in $configuration.websites.iis) {
+
+echo "`n=> Creating SSL Bindings"
+foreach ($instance in $configuration.websites.iis) {
+    if ($($args[0]) -eq "production") {
+        $domain = ("{0}" -f $instance.domain)
+    } else {
         $domain = ("$($args[0]).{0}" -f $instance.domain)
-        # create self-signed cert
-        $certificate = New-SelfSignedCertificate -DnsName ("$($args[0]).{0}" -f $instance.domain) -CertStoreLocation "cert:\LocalMachine\My"
-        # bind self-signed cert to 443
-        new-item -path "IIS:\SslBindings\!443!$domain" -value $certificate -sslflags 1 -force
     }
+    # create self-signed cert
+    $certificate = New-SelfSignedCertificate -DnsName ("{0}" -f $domain) -CertStoreLocation "cert:\LocalMachine\My"
+    # bind self-signed cert to 443
+    new-item -path "IIS:\SslBindings\!443!$domain" -value $certificate -sslflags 1 -force
+}
 
-    echo "`n=> Starting websites"
-    if (get-childitem -path IIS:\Sites) {
-        get-childitem -path IIS:\Sites | foreach { start-website $_.Name; }
-    }
-    foreach ($instance in $configuration.websites.iis) {
-        echo ("http://$($args[0]).{0}" -f $instance.domain)
-    }
 
+echo "`n=> Starting websites"
+if (get-childitem -path IIS:\Sites) {
+    get-childitem -path IIS:\Sites | foreach { start-website $_.Name; }
+}
+foreach ($instance in $configuration.websites.iis) {
+    echo ("http://{0}" -f $domain)
 }

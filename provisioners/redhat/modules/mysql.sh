@@ -22,6 +22,7 @@ fi
 
 # disable remote root login
 mysql --defaults-extra-file=$dbconf -e "DELETE FROM mysql.user WHERE user='root' AND host NOT IN ('localhost', '127.0.0.1', '::1')"
+
 # remove anonymous user
 mysql --defaults-extra-file=$dbconf -e "DELETE FROM mysql.user WHERE user=''"
 
@@ -39,7 +40,7 @@ done < <(echo "${configuration}" | shyaml get-values-0 websites.apache)
 # cleanup databases from domainvaliddbnames array
 for database in $(mysql --defaults-extra-file=$dbconf -e "show databases" | egrep -v "Database|mysql|information_schema|performance_schema"); do
     if ! [[ ${domainvaliddbnames[*]} =~ $database ]]; then
-        echo "Cleaning up websites that no longer exist..."
+        echo "Removing the ${database} database as it does not exist in your configuration..."
         mysql --defaults-extra-file=$dbconf -e "DROP DATABASE $database";
     fi
 done
@@ -75,11 +76,12 @@ done
 mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
 
 # configure a cron task for database maintenance
-touch /etc/cron.daily/catapult-mysql.cron
+touch /etc/cron.daily/catapult-mysql
 cat > "/etc/cron.daily/catapult-mysql.cron" << EOF
 #!/bin/bash
 mysqlcheck -u maintenance --all-databases --auto-repair --optimize
 EOF
+chmod 755 /etc/cron.daily/catapult-mysql.cron
 
 echo "${configuration}" | shyaml get-values-0 websites.apache |
 while IFS='' read -r -d '' key; do
