@@ -97,7 +97,7 @@ if (-not(test-path -path "c:\catapult\provisioners\windows\installers\temp\dotne
 
 echo "`n=> Installing .NET 3.5..."
 if (-not(test-path -path "c:\windows\Microsoft.NET\Framework64\v3.5\")) {
-    Install-WindowsFeature Net-Framework-Core -source "c:\catapult\provisioners\windows\installers\temp\dotnetfx35.exe"
+    install-windowsfeature Net-Framework-Core -source "c:\catapult\provisioners\windows\installers\temp\dotnetfx35.exe"
 } else {
     echo "- Installed, skipping..."
 }
@@ -176,6 +176,33 @@ for ($i=0; $i -le 10; $i++) {
 }
 
 
+<# @todo - this hangs more than it should, investigate
+echo "`n=> Running Disk Cleanup (This may take a while)..."
+# disk cleanup is packaged with the desktop-experience feature
+install-windowsfeature Desktop-Experience
+# desktop-experience requires a reboot to install
+if (test-path -path "$env:SystemRoot\System32\cleanmgr.exe") {
+    # http://support.microsoft.com/kb/253597
+    $disk_space_before = (Get-WmiObject win32_logicaldisk -filter "DeviceID='C:'" | select Freespace).FreeSpace/1GB
+    # set StateFlags0012 setting for each item in Windows 8.1 disk cleanup utility
+    $volumeCaches = Get-ChildItem "HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
+    foreach ($key in $volumeCaches) {
+        New-ItemProperty -Path "$($key.PSPath)" -Name StateFlags0099 -Value 2 -Type DWORD -Force | Out-Null
+    }
+    # run disk cleanup
+    start-process -Wait "$env:SystemRoot\System32\cleanmgr.exe" -ArgumentList "/sagerun:99"
+    # delete the keys
+    $volumeCaches = Get-ChildItem "HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
+    foreach ($key in $volumeCaches) {
+        Remove-ItemProperty -Path "$($key.PSPath)" -Name StateFlags0099 -Force | Out-Null
+    }
+    $disk_space_after = (Get-WmiObject win32_logicaldisk -filter "DeviceID='C:'" | select Freespace).FreeSpace/1GB
+    "Free Space Before: {0} GB" -f [math]::round($disk_space_before,2)
+    "Free Space After: {0} GB" -f [math]::round($disk_space_after,2)
+}
+#>
+
+
 echo "`n=> Checking for Windows Updates (This may take a while)..."
 # configure windows update settings
 $windows_update_settings = (new-object -com "Microsoft.Update.AutoUpdate").Settings
@@ -183,7 +210,7 @@ $windows_update_settings = (new-object -com "Microsoft.Update.AutoUpdate").Setti
 # 2 - Check for updates but let me choose whether to download and install them
 # 3 - Download updates but let me choose whether to install them
 # 4 - Install updates automatically
-$windows_update_settings.NotificationLevel=3
+$windows_update_settings.NotificationLevel=4
 $windows_update_settings.ScheduledInstallationDay=0
 $windows_update_settings.ScheduledInstallationTime=3
 $windows_update_settings.IncludeRecommendedUpdates=$true
@@ -207,3 +234,13 @@ Get-WUServiceManager
 # install latest updates
 echo "Checking for Microsoft Updates..."
 Get-WUInstall -MicrosoftUpdate -AcceptAll -IgnoreReboot
+
+
+echo "`n=> Configuring Task Scheduler..."
+# configure a weekly task to reboot the system if necessary
+$taskname = "REQUIRED REBOOT STATUS"
+if (-not(Get-ScheduledTask -TaskName $taskname -ErrorAction SilentlyContinue)) {
+    $action = New-ScheduledTaskAction -Execute "c:\catapult\provisioners\windows\modules\system_reboot.ps1"
+    $trigger = New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Sunday -At 3am
+    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $taskname -User "System"
+}
