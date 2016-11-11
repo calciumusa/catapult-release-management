@@ -154,7 +154,15 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
 
             if [ "${software_auto_update}" = "true" ]; then
                 #@todo - automate the manual https://www.mediawiki.org/wiki/Manual:Upgrading
+                # v1.26 is the latest compatible with PHP v5.4 https://www.mediawiki.org/wiki/Compatibility#PHP
+                # there will need to be more work with this, upgrading from v1.25 to v1.26 requires to delete the LocalSettings.php and run through the setup and the skins do not seem to translate properly
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && curl --silent --show-error --connect-timeout 5 --output mediawiki.tar.gz --retry 5 --location --url https://github.com/wikimedia/mediawiki/archive/1.26.4.tar.gz
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && tar --exclude='images' --extract --file=mediawiki.tar.gz --no-same-owner --strip-components=1 --totals --ungzip
                 #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && composer update
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php maintenance/update.php
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php maintenance/runJobs.php
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php maintenance/rebuildall.php
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && rm -f mediawiki.tar.gz
                 : #no-op
             fi
 
@@ -271,32 +279,6 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
 else
 
     echo -e "> software tools have yet to be installed, skipping..."
-
-fi
-
-# set directory permissions of software file store containers
-if [ -z "$(provisioners_array software.apache.${software}.file_store_containers)" ]; then
-    echo "this software has no file store containers, skipping..."
-else
-    cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 software.apache.$(catapult websites.apache.$5.software).file_store_containers |
-    while read -r -d $'\0' file_store_container; do
-
-        file_store_container="/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_store_container}"
-        echo -e "software file store container: ${file_store_container}"
-
-        # if the file store container does not exist, create it
-        if [ ! -d "${file_store_container}" ]; then
-            echo -e "- file store container does not exist, creating..."
-            sudo mkdir --parents "${file_store_container}"
-        fi
-
-        # set the file store container permissions
-        echo -e "- setting directory permissions..."
-        if [ "$1" != "dev" ]; then
-            sudo chown -R apache "${file_store_container}"
-        fi
-        sudo chmod -R 0700 "${file_store_container}"
-    done
 
 fi
 
