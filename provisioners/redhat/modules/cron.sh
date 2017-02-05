@@ -2,24 +2,34 @@ source "/catapult/provisioners/redhat/modules/catapult.sh"
 
 
 # create custom cron tasks
+# certificates
+if ([ "${4}" == "apache" ] && [ "${1}" != "dev" ]); then
+    cat "/catapult/provisioners/redhat/modules/cron_certificates.sh" > "/etc/cron.weekly/catapult-certificates.cron"
+fi
+# git
 if ([ "${4}" == "apache" ] || [ "${4}" == "mysql" ]); then
     cat "/catapult/provisioners/redhat/modules/cron_git.sh" > "/etc/cron.weekly/catapult-git.cron"
 fi
-
+# mail
+if ([ "${4}" == "apache" ]); then
+    cat "/catapult/provisioners/redhat/modules/cron_mail.sh" > "/etc/cron.daily/catapult-mail.cron"
+fi
+# mysql
 if [ "${4}" == "mysql" ]; then
     # ref: https://mariadb.com/kb/en/mariadb/mysqlcheck/
     cat "/catapult/provisioners/redhat/modules/cron_mysql.sh" > "/etc/cron.weekly/catapult-mysql.cron"
 fi
-
+# reboot
 cat "/catapult/provisioners/redhat/modules/cron_reboot.sh" > "/etc/cron.weekly/catapult-reboot.cron"
 
 
 # define cron tasks and be mindful of order
 hourly=("0anacron" "0yum-hourly.cron")
-daily=("0yum-daily.cron" "logrotate" "man-db.cron")
-weekly=("catapult-git.cron" "catapult-mysql.cron" "catapult-reboot.cron")
+daily=("0yum-daily.cron" "catapult-mail.cron" "logrotate" "man-db.cron")
+weekly=("catapult-certificates.cron" "catapult-git.cron" "catapult-mysql.cron" "catapult-reboot.cron")
 monthly=()
 
+# ensure loose set of cron tasks and set correct permissions
 for file in /etc/cron.hourly/*; do
     if ! [[ ${hourly[*]} =~ $(basename $file) ]]; then
         echo "removing ${file}"
