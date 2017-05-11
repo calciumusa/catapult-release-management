@@ -204,14 +204,130 @@ EOF
         </VirtualHost>
     </IfModule>
 
-    # allow .htaccess in apache 2.4+
+    # define apache ruleset for the web root
     <Directory "/var/www/repositories/apache/${domain}/${webroot}">
+
+        # allow .htaccess in apache 2.4+
         AllowOverride All
         Options -Indexes +FollowSymlinks
+
         # define new relic appname
         <IfModule php5_module>
             php_value newrelic.appname "${domain_environment};$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat"
         </IfModule>
+
+        # compressed certain content types before being sent to the client over the network
+        # https://github.com/h5bp/server-configs-apache
+        # https://httpd.apache.org/docs/current/mod/mod_filter.html#addoutputfilterbytype
+        <IfModule mod_deflate.c>
+            <IfModule mod_filter.c>
+                AddOutputFilterByType DEFLATE "application/atom+xml"
+                AddOutputFilterByType DEFLATE "application/javascript"
+                AddOutputFilterByType DEFLATE "application/json"
+                AddOutputFilterByType DEFLATE "application/ld+json"
+                AddOutputFilterByType DEFLATE "application/manifest+json"
+                AddOutputFilterByType DEFLATE "application/rdf+xml"
+                AddOutputFilterByType DEFLATE "application/rss+xml"
+                AddOutputFilterByType DEFLATE "application/schema+json"
+                AddOutputFilterByType DEFLATE "application/vnd.geo+json"
+                AddOutputFilterByType DEFLATE "application/vnd.ms-fontobject"
+                AddOutputFilterByType DEFLATE "application/x-font-ttf"
+                AddOutputFilterByType DEFLATE "application/x-javascript"
+                AddOutputFilterByType DEFLATE "application/x-web-app-manifest+json"
+                AddOutputFilterByType DEFLATE "application/xhtml+xml"
+                AddOutputFilterByType DEFLATE "application/xml"
+                AddOutputFilterByType DEFLATE "font/eot"
+                AddOutputFilterByType DEFLATE "font/opentype"
+                AddOutputFilterByType DEFLATE "image/bmp"
+                AddOutputFilterByType DEFLATE "image/svg+xml"
+                AddOutputFilterByType DEFLATE "image/vnd.microsoft.icon"
+                AddOutputFilterByType DEFLATE "image/x-icon"
+                AddOutputFilterByType DEFLATE "text/cache-manifest"
+                AddOutputFilterByType DEFLATE "text/css"
+                AddOutputFilterByType DEFLATE "text/html"
+                AddOutputFilterByType DEFLATE "text/javascript"
+                AddOutputFilterByType DEFLATE "text/plain"
+                AddOutputFilterByType DEFLATE "text/vcard"
+                AddOutputFilterByType DEFLATE "text/vnd.rim.location.xloc"
+                AddOutputFilterByType DEFLATE "text/vtt"
+                AddOutputFilterByType DEFLATE "text/x-component"
+                AddOutputFilterByType DEFLATE "text/x-cross-domain-policy"
+                AddOutputFilterByType DEFLATE "text/xml"
+            </IfModule>
+        </IfModule>
+
+        # allow ETags as there is only one data store (Apache does a file stat so serving the same file from multiple servers would invalidate ETags)
+        # https://github.com/expressjs/express/issues/2445
+        # https://gist.github.com/6a68/4971859
+        # https://github.com/h5bp/server-configs-apache
+        # https://tools.ietf.org/html/rfc7232#section-2.3
+        # https://httpd.apache.org/docs/2.4/mod/core.html#fileetag
+        FileETag MTime Size
+
+        # serve resources with far-future expires headers
+        # (!) if you don't control versioning with filename-based cache busting, you should consider lowering the cache times to something like one week
+        # cloudflare uses 4 hours as a default cache expiration, we'll align with that for the most part
+        # https://support.cloudflare.com/hc/en-us/articles/200172516-Which-file-extensions-does-Cloudflare-cache-for-static-content-
+        # https://support.cloudflare.com/hc/en-us/article_attachments/212266867/cachable.txt
+        # https://github.com/h5bp/server-configs-apache
+        # https://httpd.apache.org/docs/current/mod/mod_expires.html
+        <IfModule mod_expires.c>
+            ExpiresActive on
+            ExpiresDefault                                      "access plus 4 hours"
+          # CSS
+            ExpiresByType text/css                              "access plus 4 hours"
+          # Data interchange
+            ExpiresByType application/atom+xml                  "access plus 1 hour"
+            ExpiresByType application/rdf+xml                   "access plus 1 hour"
+            ExpiresByType application/rss+xml                   "access plus 1 hour"
+            ExpiresByType application/json                      "access plus 0 seconds"
+            ExpiresByType application/ld+json                   "access plus 0 seconds"
+            ExpiresByType application/schema+json               "access plus 0 seconds"
+            ExpiresByType application/vnd.geo+json              "access plus 0 seconds"
+            ExpiresByType application/xml                       "access plus 0 seconds"
+            ExpiresByType text/xml                              "access plus 0 seconds"
+          # Favicon (cannot be renamed!) and cursor images
+            ExpiresByType image/vnd.microsoft.icon              "access plus 4 hours"
+            ExpiresByType image/x-icon                          "access plus 4 hours"
+          # HTML
+            ExpiresByType text/html                             "access plus 0 seconds"
+          # JavaScript
+            ExpiresByType application/javascript                "access plus 4 hours"
+            ExpiresByType application/x-javascript              "access plus 4 hours"
+            ExpiresByType text/javascript                       "access plus 4 hours"
+          # Manifest files
+            ExpiresByType application/manifest+json             "access plus 4 hours"
+            ExpiresByType application/x-web-app-manifest+json   "access plus 0 seconds"
+            ExpiresByType text/cache-manifest                   "access plus 0 seconds"
+          # Media files
+            ExpiresByType audio/ogg                             "access plus 4 hours"
+            ExpiresByType image/bmp                             "access plus 4 hours"
+            ExpiresByType image/gif                             "access plus 4 hours"
+            ExpiresByType image/jpeg                            "access plus 4 hours"
+            ExpiresByType image/png                             "access plus 4 hours"
+            ExpiresByType image/svg+xml                         "access plus 4 hours"
+            ExpiresByType image/webp                            "access plus 4 hours"
+            ExpiresByType video/mp4                             "access plus 4 hours"
+            ExpiresByType video/ogg                             "access plus 4 hours"
+            ExpiresByType video/webm                            "access plus 4 hours"
+          # Web fonts
+            # Embedded OpenType (EOT)
+            ExpiresByType application/vnd.ms-fontobject         "access plus 1 month"
+            ExpiresByType font/eot                              "access plus 1 month"
+            # OpenType
+            ExpiresByType font/opentype                         "access plus 1 month"
+            # TrueType
+            ExpiresByType application/x-font-ttf                "access plus 1 month"
+            # Web Open Font Format (WOFF) 1.0
+            ExpiresByType application/font-woff                 "access plus 1 month"
+            ExpiresByType application/x-font-woff               "access plus 1 month"
+            ExpiresByType font/woff                             "access plus 1 month"
+            # Web Open Font Format (WOFF) 2.0
+            ExpiresByType application/font-woff2                "access plus 1 month"
+          # Other
+            ExpiresByType text/x-cross-domain-policy            "access plus 4 hours"
+        </IfModule>
+
     </Directory>
 
     # deny access to _sql folders
