@@ -138,7 +138,7 @@ Dashboard - Control                           | CLI                             
 Dashboard - Monitor                           | Web                                   | Web                           | Web
 Managed Public Git Website Repository Support | GitHub & Bitbucket                    | :x:                           | :x:
 Managed DNS                                   | CloudFlare                            | :x:                           | :x:
-Managed Free HTTPS/SSL                        | CloudFlare/Let's Encrypt              | :x:                           | :x:
+Managed Free HTTPS Certificates               | CloudFlare/Let's Encrypt              | :x:                           | :x:
 Managed Server Monitoring                     | New Relic                             | :x:                           | Proprietary
 Managed Application Error Logs                | New Relic                             | Proprietary                   | Proprietary
 Managed Application Performance Monitoring    | New Relic                             | :x:                           | :x:
@@ -175,7 +175,9 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
     - [Website Development](#website-development)
         - [Website Repositories](#website-repositories)
         - [Software Updates and Fresh Installs](#software-updates-and-fresh-installs)
+        - [HTTPS and Certificates](#https-and-certificates)
         - [Forcing www](#forcing-www)
+        - [Caching](#caching)
         - [Database Migrations](#database-migrations)
         - [Refreshing Databases](#refreshing-databases)
         - [Connecting to Databases](#connecting-to-databases)
@@ -189,12 +191,19 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
     - [Disaster Recovery](#disaster-recovery)
         - [Server Rebuilding](#server-rebuilding) 
         - [Website Rollbacks](#website-rollbacks)
-- [Compliance and Security](#compliance-and-security)
+- [Security](#security)
+    - [Preventive Controls](#preventive-controls)
+    - [Detective Controls](#reactive-controls)
+    - [Corrective Controls](#corrective-controls)
+    - [Security Breach Notification Laws](#security-breach-notification-laws)
+- [Compliance](#compliance)
     - [Cloud Compliance](#cloud-compliance)
     - [Self Compliance](#self-compliance)
-    - [HTTPS and SSL Certificates](#https-and-ssl-certificates)
-        - [Custom SSL Certificates](#custom-ssl-certificates)
-    - [Security Breach Notification Laws](#security-breach-notification-laws)
+- [Performance](#performance)
+    - [Bandwidth Optimizations](#bandwidth-optimizations)
+    - [Caching Optimizations](#caching-optimizations)
+    - [Geographic Optimizations](#geographic-optimizations)
+    - [Recommended Optimizations](#recommended-optimizations)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
     - [Releases](#releases)
@@ -800,7 +809,7 @@ The following options are available:
     * option: `force_https: true`
         * rewrites all http traffic to https
         * all `dev.` domains in LocalDev will have an unsigned certificate warning
-        * free SSL certificates are created and managed for you compliments of CloudFlare (single-subdomain) and Let's Encrypt (multi-subdomain)
+        * free certificates are created and managed for you compliments of CloudFlare (single-subdomain) and Let's Encrypt (multi-subdomain)
 * `repo:`
     * required: yes
     * example: `repo: git@github.com:devopsgroup-io/devopsgroup-io.git`
@@ -904,6 +913,67 @@ Software | `software_auto_update` Support | Install Approach | Install Notes
 `xenforo`           | [:x:](https://xenforo.com/help/upgrades/)                                | Download |
 `zendframework2`    | :white_check_mark:                                                       | Fork     | Your best bet is to start from the [zendframework/ZendSkeletonApplication](https://github.com/zendframework/ZendSkeletonApplication) GitHub project. Catapult assumes Zend Framwork is at the root of your repo and writes a database config file at `config/autoload/global.php`, you will also need to set `webroot: public/` in your Catapult configuration.
 
+### HTTPS and Certificates ###
+
+Catapult manages free Domain Validation (DV) certificates compliments of Cloudflare and Let's Encrypt automatically for all of your websites and optionally manages purchased certificates.
+
+It's important to note that certificates are not dependent on protocols. Many vendors tend to use the phrase "SSL/TLS certificate", it may be more accurate to call them "certificates for use with SSL and TLS", since the protocols are determined by your server configuration, not the certificates themselves. It's likely you will continue to see certificates referred to as SSL certificates because at this point that’s the term more people are familiar, however, we're just calling them "certificates".
+
+**Browser Compatibility**
+
+Catapult tracks Mozilla's Operations Security (OpSec) team Security/Server Side TLS recommendations document and the "Intermediate" recommended configuration and is our objective to maintain at least an A rating with [Qualys Labs](https://www.ssllabs.com/ssltest/analyze.html?d=devopsgroup.io&latest). An important note is that Catapult does not support old browsers that do not support Server Name Indication (SNI). Here is Catapult's list of oldest compatible browsers:
+
+* Chrome 1
+* Internet Explorer 7 / Windows Vista
+* Internet Explorer 8 / Windows 7
+* Firefox 1
+* Safari 1
+
+**Purchased Certificates**
+
+Depending on your compliance needs you may need to purchase custom certificates unique to your orginization. Below is a table of the three different types of certificates that should be taken into account when auditing your compliance needs.
+
+Feature                                        | Domain Validation (DV certificates)                                                          | Organization Validation (OV certificates)                                                   | Extended Validation (EV certificates)
+-----------------------------------------------|----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------
+Single Domain Certificate                      | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :white_check_mark:
+Wildcard Certificate                           | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :x:
+Multiple Domain Certificate                    | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :white_check_mark:
+Cost                                           | $                                                                                            | $$                                                                                          | $$$
+Issuing Process                                | Automatic                                                                                    | Application vetted by Certificate Authority                                                 | Application vetted by Certificate Authority
+Issuing Criteria: Domain Name(s) Ownership     | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :white_check_mark:
+Issuing Criteria: Organization Existence       | :x:                                                                                          | :white_check_mark:                                                                          | :white_check_mark:
+Issuing Criteria: Organization Legal Existence | :x:                                                                                          | :x:                                                                                         | :white_check_mark:
+Industry Accepted Issuing Standard             | :x:                                                                                          | :x:                                                                                         | [CAB EV SSL Certificate Guidelines](https://cabforum.org/extended-validation/)
+Standard Browser Padlock                       | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :x:
+Greenbar Browser Padlock                       | :x:                                                                                          | :x:                                                                                         | :white_check_mark:
+Browser Compatibility                          | Google Chrome 1+, Mozilla Firefox 1+, Internet Explorer 5+                                   | Google Chrome 1+, Mozilla Firefox 1+, Internet Explorer 5+                                  | Google Chrome 1+, Mozilla Firefox 3+, Internet Explorer 7+
+
+Catapult optionally manages custom certificates purchased and issued by a Certificate Authority. The following files are required for Catapult to detect and use the custom certificate:
+
+* A bundled file that contains the Root Certificate Authority (CA) certificate and any Intermediate Certificate Authority certificates
+    * CA root and intermediate certificate files can be combined like this `cat COMODORSADomainValidationSecureServerCA.crt COMODORSAAddTrustCA.crt AddTrustExternalCARoot.crt >> example_com.ca-bundle`
+* The certificate file
+* The Certificate Signing Request (CSR) including the CSR file and private key file
+    * Generated with `openssl req -new -newkey rsa:2048 -nodes -keyout server.key -out server.csr`
+    * Your Certificate Signing Request file
+    * Your private key file
+
+Here is an example of a certificate implemenation for example.com:
+
+* `reporoot/_cert/example_com/example_com.ca-bundle`
+* `reporoot/_cert/example_com/example_com.crt`
+* `reporoot/_cert/example_com/server.csr`
+* `reporoot/_cert/example_com/server.key`
+
+Here is an example of a certificate implemenation for dev.example.com:
+
+* `reporoot/_cert/dev_example_com/dev_example_com.ca-bundle`
+* `reporoot/_cert/dev_example_com/dev_example_com.crt`
+* `reporoot/_cert/dev_example_com/server.csr`
+* `reporoot/_cert/dev_example_com/server.key`
+
+**Note:** If you have a wildcard certificate, duplicate each environment directory and use the same set of files
+
 ### Forcing www ###
 
 Forcing www is generally software specific, unlike forcing the https protocol, which is environment specific and driven by the `force_https` option. To force www ([why force www?](http://www.yes-www.org/)), please follow the respective guides per `software` below.
@@ -927,6 +997,18 @@ Software | Approach | Documentation
 `wordpress`         | Database             | http://codex.wordpress.org/Changing_The_Site_URL
 `xenforo`           |                      |
 `zendframework2`    |                      |
+
+### Caching ###
+
+Caching plays a very important role in the performance of your website, Catapult generally enforces caching of files to 4 hours. To ensure that a new website release is reflected in a user's browser you will want to adopt [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of files. Here's an example:
+
+`<link rel="stylesheet" href="style.min.css?v=3.4.1">`
+
+Ready to deploy a new release? Update the version number and the cache will be "busted":
+
+`<link rel="stylesheet" href="style.min.css?v=3.4.2">`
+
+Each software type will vary as to the standard convention of asset versioning, here is a [Wordpress example](https://wordpress.stackexchange.com/a/90824) to get you started.
 
 ### Database Migrations ###
 
@@ -1125,7 +1207,53 @@ Being able to react to disasters immediately and consistently is crucial - Catap
 
 
 
-# Compliance and Security #
+# Security #
+
+Catapult enforces many security best practices that are important for you to be aware of and understand. These controls avoid, detect, counteract, or minimize security risks to the platform and visitors.
+
+## Preventive Controls ##
+
+**Edge**
+
+* \*DDoS protection
+* \*Bad browser
+* \*Bad IP from Project Honeypot and Cloudflare's Threat Score list
+
+**Server**
+
+* Key-only authentication
+* Strict firewall ruleset
+* Automatic weekly kernel updates
+
+**Application**
+
+* OWASP ModSecurity core rule set
+* HTTPS strict protocol and cipher suite
+* Automatic hourly application updates
+
+**Software**
+
+* Strict directory and file permissions
+* Automatic software updates during a build
+
+\* This security feature only takes effect when the website's nameservers are set to CloudFlare
+
+## Detective Controls ##
+
+* Fail2Ban filters for sshd, sshd-ddos, and apache-botsearch
+* Weekly report of 404s and error keywords targeteted at the server and virtual hosts
+
+## Corrective Controls ##
+
+* Weekly ClamAV antivirus scan of website repositories
+
+## Security Breach Notification Laws ##
+
+Catapult introduces many best practice security measures, however, security of customer data is ultimately your responsibility. Generally speaking, if personal information is compromised, you are required by law to notify the party. Personal information, in the United States, is generally classified as **an individual's first and last name in combination with a Social Security number, driver's license number, or financial account number**. Laws vary country-by-country and state-by-state - for more information please see [this list](http://www.itgovernanceusa.com/data-breach-notification-laws.aspx) of data breach laws by U.S. state compiled by IT Governence.
+
+
+
+# Compliance #
 
 There are many complex compliance and audit standards that are your responsibility to understand and execute. Each Catapult instance is independant to you - including the required services that you signed up for during [Services Setup](#services-setup).
 
@@ -1153,58 +1281,58 @@ BitBucket         | Repository hosting                       | [:x:](https://www
 DigitalOcean NYC3 | Red Hat and Bamboo server hosting        | [:question:](https://www.digitalocean.com/help/policy/)                   | [:question:](https://www.digitalocean.com/help/policy/)
 GitHub            | Repository hosting                       | [:question:](https://help.github.com/articles/github-security/)           |
 
-## HTTPS and SSL Certificates ##
-
-Catapult manages free HTTPS compliments of Cloudflare and Let's Encrypt, however, depending on your compliance needs you may need to purchase SSL certificates unique to your orginazation. Once you're aware of your compliance responsiblity, you can then make a decision for purchasing and implementing SSL certificates.
-
-Feature                                        | Domain Validation (DV certificates)                                                          | Organization Validation (OV certificates)                                                   | Extended Validation (EV certificates)
------------------------------------------------|----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------
-Single Domain Certificate                      | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :white_check_mark:
-Wildcard Certificate                           | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :x:
-Multiple Domain Certificate                    | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :white_check_mark:
-Cost                                           | $                                                                                            | $$                                                                                          | $$$
-Issuing Process                                | Automatic                                                                                    | Application vetted by Certificate Authority                                                 | Application vetted by Certificate Authority
-Issuing Criteria: Domain Name(s) Ownership     | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :white_check_mark:
-Issuing Criteria: Organization Existence       | :x:                                                                                          | :white_check_mark:                                                                          | :white_check_mark:
-Issuing Criteria: Organization Legal Existence | :x:                                                                                          | :x:                                                                                         | :white_check_mark:
-Industry Accepted Issuing Standard             | :x:                                                                                          | :x:                                                                                         | [CAB EV SSL Certificate Guidelines](https://cabforum.org/extended-validation/)
-Standard Browser Padlock                       | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :x:
-Greenbar Browser Padlock                       | :x:                                                                                          | :x:                                                                                         | :white_check_mark:
-Browser Compatibility                          | Google Chrome 1+, Mozilla Firefox 1+, Internet Explorer 5+                                   | Google Chrome 1+, Mozilla Firefox 1+, Internet Explorer 5+                                  | Google Chrome 1+, Mozilla Firefox 3+, Internet Explorer 7+
-
-### Custom SSL Certificates
-
-Catapult supports custom SSL certificates purchased and issued by a Certificate Authority. The following files are required for Catapult to detect and use the custom SSL certificate:
-
-* A bundled file that contains the Root Certificate Authority (CA) certificate and any Intermediate Certificate Authority certificates
-    * CA root and intermediate certificate files can be combined like this `cat COMODORSADomainValidationSecureServerCA.crt COMODORSAAddTrustCA.crt AddTrustExternalCARoot.crt >> example_com.ca-bundle`
-* The certificate file
-* The Certificate Signing Request (CSR) including the CSR file and private key file
-    * Generated with `openssl req -new -newkey rsa:2048 -nodes -keyout server.key -out server.csr`
-    * Your Certificate Signing Request file
-    * Your private key file
-
-Here is an example of a certificate implemenation for example.com:
-
-* `reporoot/_cert/example_com/example_com.ca-bundle`
-* `reporoot/_cert/example_com/example_com.crt`
-* `reporoot/_cert/example_com/server.csr`
-* `reporoot/_cert/example_com/server.key`
-
-Here is an example of a certificate implemenation for dev.example.com:
-
-* `reporoot/_cert/dev_example_com/dev_example_com.ca-bundle`
-* `reporoot/_cert/dev_example_com/dev_example_com.crt`
-* `reporoot/_cert/dev_example_com/server.csr`
-* `reporoot/_cert/dev_example_com/server.key`
-
-**Note:** If you have a wildcard certificate, duplicate each 
-
-## Security Breach Notification Laws ##
-
-Catapult introduces many best practice security measures, however, security of customer data is ultimately your responsibility. Generally speaking, if personal information is compromised, you are required by law to notify the party. Personal information, in the United States, is generally classified as **an individual's first and last name in combination with a Social Security number, driver's license number, or financial account number**. Laws vary country-by-country and state-by-state - for more information please see [this list](http://www.itgovernanceusa.com/data-breach-notification-laws.aspx) of data breach laws by U.S. state compiled by IT Governence.
-
 See an error or have a suggestion? Email security@devopsgroup.io if confidential or submit a pull request - we appreciate all feedback.
+
+
+
+# Performance #
+
+Your website's performance is maximized with bandwidth, caching, and geographic optimizations, Catapult enforces these throughout all layers of your website. All in an effort to improve page loading times.
+
+**Please note:** Any optimization that would impact development or component testing in LocalDev is disabled; this workflow aligns with the testing activites described in the [Release Management](#release-management) section.
+
+## Bandwidth Optimizations ##
+
+Bandwidth optimizations are made to lower the total bytes downloaded and decrease the amount of requests made by the browser.
+
+* HTTP Content-Encoding headers are set for a defined list of files, this will compress the output sent with gzip. This saves network bandwidth.
+* HTTP ETag headers are set for all files, the ETag is a unique value based on the files modified time and size in bytes. If the ETag value is unchanged then a cached version is served if available. This saves network bandwidth.
+  * [https://github.com/devopsgroup-io/catapult/blob/master/provisioners/redhat/modules/apache_vhosts.sh](https://github.com/devopsgroup-io/catapult/blob/master/provisioners/redhat/modules/apache_vhosts.sh)
+* Aggregating CSS files and JavaScript files is enabled for the website's software type if available.
+  * [https://github.com/devopsgroup-io/catapult/blob/master/provisioners/redhat/modules/software_operations_meta.sh](https://github.com/devopsgroup-io/catapult/blob/master/provisioners/redhat/modules/software_operations_meta.sh)
+
+## Caching Optimizations ##
+
+Caching is enabled for many layers of your website including storing precompiled PHP in memory, storing precompiled page caches for certain software types, and storing files on visitor's local disk.
+
+* Zend OPcache is enabled for faster PHP execution through opcode caching and optimization.
+  * [https://secure.php.net/manual/en/intro.opcache.php](https://secure.php.net/manual/en/intro.opcache.php)
+* Page caching is enabled for the website's software type if available.
+  * [https://github.com/devopsgroup-io/catapult/blob/master/provisioners/redhat/modules/software_operations_meta.sh](https://github.com/devopsgroup-io/catapult/blob/master/provisioners/redhat/modules/software_operations_meta.sh)
+* HTTP Cache-Control headers are set to expire browser cached files after a default of 4 hours; longer for specific file types.
+  * [https://github.com/devopsgroup-io/catapult/blob/master/provisioners/redhat/modules/apache_vhosts.sh](https://github.com/devopsgroup-io/catapult/blob/master/provisioners/redhat/modules/apache_vhosts.sh)
+
+## Geographic Optimizations ##
+
+Shortening the physical distance between the origin server and visitor can trim priceless milliseconds off of page loading time. (One might make this as an argument as to why browser caching and your overall caching strategy is so important.)
+
+* If your website's name servers are set to Cloudflare, you will take advantage of files being cached accross their global network, bringing it closer to visitors from every region.
+  * [https://support.cloudflare.com/hc/en-us/articles/200172516-Which-file-extensions-does-Cloudflare-cache-for-static-content-](https://support.cloudflare.com/hc/en-us/articles/200172516-Which-file-extensions-does-Cloudflare-cache-for-static-content-)
+
+## Recommended Optimizations ##
+
+Catapult as a platform can only reach so far into the configuration of your website's software. Here are a few recommended development practices that will improve the performance of your website:
+
+* Use a development task automation tool, like [Gulp](http://gulpjs.com/) to perform the following:
+  * Image compression with [imagemin](https://www.npmjs.com/package/gulp-imagemin)
+  * JavaScript minification with [UglifyJS2](https://www.npmjs.com/package/gulp-uglify)
+  * CSS minification with [clean-css](https://www.npmjs.com/package/gulp-clean-css)
+* Use [CSS sprites](https://css-tricks.com/css-sprites/) to reduce the number of HTTP requests
+* Write [PHP the right way](http://www.phptherightway.com/#welcome)
+* Write [efficient PHP](http://www.phpbench.com/)
+* Practice [self documenting code](https://www.amazon.com/dp/0132350882/)
+
+Google's [PageSpeed Insights](https://developers.google.com/speed/pagespeed/insights/) is a good tool to test for performance optimizations.
 
 
 
