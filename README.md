@@ -178,6 +178,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
         - [HTTPS and Certificates](#https-and-certificates)
         - [Forcing www](#forcing-www)
         - [Caching](#caching)
+        - [Progressive Web App](#progressive-web-app)
         - [Email](#email)
         - [Database Migrations](#database-migrations)
         - [Refreshing Databases](#refreshing-databases)
@@ -395,7 +396,7 @@ Bitbucket provides free private repositories and GitHub provides free public rep
     2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key in https://github.com/settings/ssh named "Catapult"
 
 ### 3. **Automated Deployments:**
-Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used Bamboo Cloud until recent, there is now an implemenation of Bamboo Server. Please use the setup instructions for Bamboo Server, Bamboo Cloud documenation kept for transitioning users.
+Please note that Bamboo Cloud's end-of-life is January 31, 2017. For new setups, please use the **Bamboo Server sign-up and set-up** documentation. Existing Catapult user's may still be using Bamboo Cloud, in that case, please use the **Bamboo Cloud sign-up and set-up** documentation.
 
 **Bamboo Cloud sign-up and set-up**
 
@@ -430,16 +431,17 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
 
 **Bamboo Server set-up**
 
-1. Access your MyAtlassian License section at https://my.atlassian.com/products/index
+1. Sign up for an Atlassian account at https://my.atlassian.com/
+2. Access your My Atlassian license section at https://my.atlassian.com/products/index
     * Please read the Bamboo Licensing and Pricing page for more information https://www.atlassian.com/licensing/bamboo
-2a. For current Bamboo Cloud customers transitioning to Bamboo Server, you will see a Bamboo Starter License
-2b. For new Bamboo customers, please purchase a Bamboo Server license from https://www.atlassian.com/purchase/product/bamboo 
-3. It's now time to bring up your build server, please run `vagrant up ~/secrets/configuration.yml["company"]["name"]-build`
+3a. For current Bamboo Cloud customers transitioning to Bamboo Server, you will see a Bamboo Starter License
+3b. For new Bamboo customers, please purchase a Bamboo Server license from https://www.atlassian.com/purchase/product/bamboo 
+4. It's now time to bring up your build server, please run `vagrant up ~/secrets/configuration.yml["company"]["name"]-build`
     * The initial `up` will take some time for, please be patient
-4. Login to DigitalOcean to obtain the IP address of the virtual machine to access via URL
+5. Login to DigitalOcean to obtain the IP address of the virtual machine to access via URL
     * Place your Bamboo base URL at `~/secrets/configuration.yml["company"]["bamboo_base_url"]`, the format should be http://[digitalocean-ip-here]/
-5. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license.
-6. You will next be prompted to enter the following information:
+6. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license.
+7. You will next be prompted to enter the following information:
     * Username (required) - root
     * Password (required) - specify a complex password
     * Confirm password (required)
@@ -447,6 +449,8 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
     * Email - use `~/secrets/configuration.yml["company"]["email"]`
 
 **Bamboo Configuration**
+
+To avoid having to manually configure the Bamboo project, plans, stages, jobs, and tasks configuration, you may optionally install and purchase the "Bob Swift Atlassian Add-ons - Bamboo CLI Connector" Bamboo add-on. Otherwise, the manual setup configuration steps are outlined below:
 
 1. Place your Bamboo username at `~/secrets/configuration.yml["company"]["bamboo_username"]`
     * Normally admin for Bamboo Cloud
@@ -527,7 +531,7 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
 
 ### 6. **Email:**
 1. **SendGrid** sign-up and configuration
-    1. Create a New Relic account at https://sendgrid.com/
+    1. Create a SendGrid account at https://sendgrid.com/
     2. Sign in to your SendGrid account
     3. Go to Settings > API Keys.
     4. Generate an API key named "Catapult" and place at `~/secrets/configuration.yml["company"]["sendgrid_api_key"]`
@@ -567,9 +571,9 @@ For each **Environment** you will need to:
 
 ## Configure Automated Deployments ##
 
-Once the Web and Database Servers are up and running, it's then time to configure your Bamboo Catapult project's TEST, QC, and PROD plans.
+Once the Web and Database Servers are up and running, it's then time to configure your Bamboo Catapult project's TEST, QC, and PROD plans. To avoid having to manually configure the Bamboo project, plans, stages, jobs, and tasks configuration, you may optionally install and purchase the "Bob Swift Atlassian Add-ons - Bamboo CLI Connector" Bamboo add-on. Otherwise, the manual setup configuration steps are outlined below:
 
-1. Sign in to your new custom Bamboo instance https://[your-name-here].atlassian.net
+1. Sign in to your new custom Bamboo instance `~/secrets/configuration.yml["company"]["bamboo_base_url"]`
 2. Click Build > All build plans from the header:
 3. From the Build Dashboard and under the Catapult project:
     * **Configure Catapult Project TEST Plan**
@@ -905,8 +909,8 @@ Catapult enforces software configuration best practice for software fresh instal
 
 Software | `software_auto_update` Support | Install Approach | Install Notes
 ---------|--------------------------------|------------------|--------------
-`codeigniter2`      | [:x:](http://www.codeigniter.com/userguide2/installation/upgrading.html) |          |
-`codeigniter3`      | [:x:](http://www.codeigniter.com/user_guide/installation/upgrading.html) |          |
+`codeigniter2`      | [:white_check_mark:](http://www.codeigniter.com/userguide2/installation/upgrading.html) |          | Follow the [Installation Instructions](https://www.codeigniter.com/userguide2/installation/index.html).
+`codeigniter3`      | [:white_check_mark:](https://www.codeigniter.com/userguide3/installation/upgrading.html) |          | Follow the [Installation Instructions](https://www.codeigniter.com/userguide3/installation/index.html).
 `drupal6`           | :white_check_mark:                                                       | Drush    | `drush dl drupal-6`
 `drupal7`           | :white_check_mark:                                                       | Drush    | `drush dl drupal-7`
 `elgg1`             | [:x:](http://learn.elgg.org/en/2.0/admin/upgrading.html)                 | Fork     | Follow the installation [Overview](http://learn.elgg.org/en/2.0/intro/install.html). Catapult requires the `dataroot` directory to be within the webroot, it's pertinant to create a `.gitignore` to ignore and `.htaccess` to deny access to this directory.
@@ -1008,7 +1012,7 @@ Software | Approach | Documentation
 
 ### Caching ###
 
-Caching plays a very important role in the performance of your website, Catapult generally enforces caching of files to 7 days. To ensure that a new website release is reflected in a user's browser you will want to adopt [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of files. Here's an example:
+Caching plays a very important role in the performance of your website. Catapult generally enforces caching of files to 7 days. To ensure that a new website release is reflected in a user's browser you will want to adopt [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of files. Here's an example:
 
 `<link rel="stylesheet" href="style.min.css?v=3.4.1">`
 
@@ -1018,9 +1022,12 @@ Ready to deploy a new release? Update the version number and the cache will be "
 
 Each software type will vary as to the standard convention of asset versioning, here is a [Wordpress example](https://wordpress.stackexchange.com/a/90824) to get you started.
 
+### Progressive Web App ###
+Progressive Web App (PWA), in general, is a term used to denote web apps that use the latest web technologies. Catapult allows a `manifest.json` file to be placed in your `webroot`. Note that this will be accessible regardless of whether or not you are using the `force_auth` option, which is necessary because `manifest.json` is sometimes accessed outside of the session under which you authenticated. Don't forget to include the `link` tag `<link rel="manifest" href="/manifest.json">` to notify the browser of your manifest. More information regarding PWAs can be found at Google's [Web App Manifest](https://developers.google.com/web/fundamentals/engage-and-retain/web-app-manifest/) and [Progressive Web App Checklist](https://developers.google.com/web/progressive-web-apps/checklist).
+
 ### Email ###
 
-Email delivery is an art, there are many considerations when trying to get an email into someone's inbox. Some considerations include, IP reputation, bounce management, analytics visibility, and more. For that reason, Catapult requires setup of a SendGrid accoung and recommned use of. To configure SendGrid with your software type, please set the SMTP configurtion to the following:
+Email delivery is an art, there are many considerations when trying to get an email into someone's inbox. Some considerations include, IP reputation, bounce management, analytics visibility, and more. For that reason, Catapult requires setup of a SendGrid account and configuration of SMTP within your website's software. To configure SendGrid with your software type, please set the SMTP configurtion to the following:
 
 * SMTP host: `smtp.sendgrid.net`
 * SMTP port: `587`
