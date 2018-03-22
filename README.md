@@ -185,6 +185,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
         - [Refreshing Databases](#refreshing-databases)
         - [Connecting to Databases](#connecting-to-databases)
         - [Production Hotfixes](#production-hotfixes)
+    - [Automated Deployment Cycle](#automated-deployment-cycle)
     - [Maintenance Cycle](#maintenance-cycle)
         - [Daily](#daily)
         - [Weekly](#weekly)
@@ -722,7 +723,7 @@ Catapult follows Gitflow for its **infrastructure configuration** *and* **websit
 |            | LocalDev | Test | QC | Production
 |------------|----------|------|----|-----------
 **Running Branch**                                       | *develop*                                                   | *develop*                                                                                                      | *release*                                                      | *master*
-**Deployments**                                          | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)                                                          | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
+**Automated Deployments**                                | No, manually via `vagrant provision`                        | Yes, triggered by new commits to **develop**                                                                   | Yes, nightly or manually via Bamboo                            | Yes, nightly or manually via Bamboo
 **Testing Activities**                                   | Component Test                                              | Integration Test, System Test                                                                                  | Acceptance Test, Release Test                                  | Operational Qualification
 **Scrum Activity**                                       | Sprint Start: Development of User Stories                   | Daily Scrum                                                                                                    | Sprint Review                                                  | Sprint End: Accepted Product Release
 **Scrum Roles**                                          | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)                                                       | Scrum Master, Development Team, Product Owner                  | Product Owner
@@ -1112,17 +1113,38 @@ Oracle SQL Developer is the recommended tool, to connect to and work with, datab
         * For convenience, you may also use `~/catapult/installers/jtds-1.3.1.jar`
 * **Connecting to:** LocalDev
     * The firewall allows direct connection to the database server. 
-        * Use the mysql values in `~/secrets/configuration.yml` to connect.
+        * From Oracle SQL Developer > View > Connections, add a New Connection with the respective environment's mysql user values in `~/secrets/configuration.yml`.
 * **Connecting to:** Test, QC, Production
     * The firewall does not allow direct connect to the database servers.
-        * Add a New SSH Host in Oracle SQL Developer with the respective environment's web server host public ip address, root username with key file at `~/secrets/id_rsa`.
+        * From Oracle SQL Developer > View > SSH, add a New SSH Host in Oracle SQL Developer with the respective environment's web server host public ip address, root username with key file at `~/secrets/id_rsa`.
             * Create a New Local Port Forward with the respective environment's database server host private ip address and port 3306.
-        * Then add a New Connection with the respective environment's mysql user values in `~/secrets/configuration.yml`.
+        * From Oracle SQL Developer > View > Connections, add a New Connection with the respective environment's mysql user values in `~/secrets/configuration.yml`.
             * The hostname will be localhost since we are forwarding the port through our local SSH tunnel.
 
 ### Production Hotfixes ###
 
-Always weigh the risk of *not performing* a production hotfix versus *performing* it, as production hotfixes require going outside of the normal development and testing workflow. Performing a production hotfix varies depending on the website's `software` type, `software_workflow` direction, and type of change (code or database).
+Always weigh the risk of *not performing* a production hotfix versus *performing* it, as production hotfixes require going outside of the normal development and testing workflow. Below is an example of how you can determine severity:
+
+Ask key stakeholders the following questions and assign a 1 or 0 for the answer, then add up the total:
+
+* What is the organizational risk?
+    * High = 1 or Low = 0
+* How many users does this effect?
+    * Many = 1 or Few = 0
+* Is there a workaround?
+    * No = 1 or Yes = 0
+* What is the user impact?
+    * High = 1 or Low = 0
+
+The total will determine the level of severity, typically a 4 would be considered a candidate for a production hotfix:
+
+* 0=Tolerate
+* 1=Trivial
+* 2=Minor
+* 3=Major
+* 4=Critical
+
+Performing a production hotfix varies depending on the website's `software` type, `software_workflow` direction, and type of change (code or database).
 
 * `software_workflow: downstream`
     * **Code**
@@ -1155,23 +1177,62 @@ Always weigh the risk of *not performing* a production hotfix versus *performing
 
 
 
+## Automated Deployment Cycle ##
+
+The automated deployment cycle releases changesets merged into respective environment branches for websites and your Catapult configuration, in addition to running server updates.
+
+Environment | Scheduled
+----------- | ---------
+LocalDev    | n/a, requires provision
+Test        | 12:00 AM
+QC          | 1:00 AM
+Production  | 2:00 AM
+
+* Operating System and server software updates
+* [Website software updates](#software-updates-and-fresh-installs)
+* [Website repository changesets](#software-workflow)
+* [Website software database restores](#software-workflows)
+* [Website software database migrations](#database-migrations)
+* [Website software database backups](#software-workflows)
+
+
+
 ## Maintenance Cycle ##
 
-A maintenance cycle is scheduled for defined times within the timezone that is defined within `~/secrets/configuration.yml` at the `timezone_redhat` and `timezone_windows` value of the [Company](#company) entry. This ensures servers within your infrastructure are automatically patched to mitigate security vulnerabilites.
+A maintenance cycle is scheduled for defined times within the timezone that is defined within `~/secrets/configuration.yml` at the `timezone_redhat` and `timezone_windows` value of the [Company](#company) entry. This ensures system and website software is patched and other security controls are run within your infrastructure to automatically mitigate security vulnerabilites.
 
 ### Daily ###
+Daily maintenance occurs:
 
-During daily maintenance, system updates are downloaded and installed, logs are rotated, and database maintenance performed.
+* Red Hat - 3:05 AM
+* Windows - 2:00 AM
 
-* Red Hat - 3:05AM
-* Windows - 2:00AM
+Daily maintenance includes:
+
+* Updating Operating System and server software
+* Rotating logs
+* Discovering mail which has failed to send
 
 ### Weekly ###
 
-During weekly maintenance, if necessary, servers will be rebooted dependant upon kernel updates for Red Hat and the Windows Updates pending restart status for Windows. Server reboots are generally fast for Red Hat at 5-10 seconds and 1-2 minutes for Windows.
+Weekly maintenance occurs:
 
-* Red Hat - Sunday 3:25AM
-* Windows - Sunday 3:00AM
+* Red Hat - Sunday 3:25 AM
+* Windows - Sunday 3:00 AM
+
+Weekly maintenance includes:
+
+* [Security Preventive Controls](#preventive-controls)
+* [Security Detective Controls](#detective-controls)
+* [Security Corrective Controls](#corrective-controls)
+* [Auto-rewew HTTPS certificate](#https-and-certificates)
+* Git garbage collection for website repositories
+* Performing database maintenance
+
+Servers will be rebooted when:
+
+* Red Hat - a kernel update is staged
+* Windows - Microsoft Update indicates a restart is required
 
 
 
