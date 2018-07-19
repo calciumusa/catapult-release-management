@@ -87,10 +87,10 @@ Catapult intelligently manages the following software that has been chosen from 
 Software | [Key](#websites) | Required PHP Version | Defined PHP Version | Released | End-of-Life
 ---------|------------------|---------------------|---------------------|----------|------------
 CodeIgniter 2                     | `codeigniter2`         | 5.1.6  | 5.4 | January 28, 2011   | [October 31, 2015](http://forum.codeigniter.com/thread-61357.html)
-CodeIgniter 3                     | `codeigniter3`         | 5.6    | 5.4 | March 30, 2015     | 
+CodeIgniter 3                     | `codeigniter3`         | 5.6    | 5.6 | March 30, 2015     | 
 Drupal 6                          | `drupal6`              | 5.4    | 5.4 | February 13, 2008  | [February 24, 2016](https://www.drupal.org/drupal-6-eol)
 Drupal 7                          | `drupal7`              | 5.2.5  | 5.6 | January 5, 2011    |
-Drupal 8                          | `drupal8`              | 5.5.9  | 7.0 | November 19, 2015  |
+Drupal 8                          | `drupal8`              | 5.5.9  | 7.1 | November 19, 2015  |
 Elgg 1                            | `elgg1`                | 5.4    | 5.4 | August 20, 2008    |
 Elgg 2                            | `elgg2`                | 5.6    | 5.6 | December 14, 2015  |
 ExpressionEngine 3                | `expressionengine3`    | 5.3.10 | 5.4 | October 13, 2015   |
@@ -181,6 +181,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
         - [Cache Busting](#cache-busting)
         - [Progressive Web App](#progressive-web-app)
         - [Email](#email)
+        - [Upload Limits](#upload-limits)
         - [Database Migrations](#database-migrations)
         - [Refreshing Databases](#refreshing-databases)
         - [Connecting to Databases](#connecting-to-databases)
@@ -196,7 +197,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
     - [Preventive Controls](#preventive-controls)
     - [Detective Controls](#reactive-controls)
     - [Corrective Controls](#corrective-controls)
-    - [Security Breach Notification Laws](#security-breach-notification-laws)
+    - [Data Protection](#data-protection)
         - [United States](#united-states)
         - [Europe](#europe)
 - [Compliance](#compliance)
@@ -222,6 +223,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
 Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#instance-setup), and [Services Setup](#services-setup) as described in the following sections.
 
 **Please Note:**
+* You must run most commands from an elevated shell. For macOS and Linux, type `sudo su` in a terminal window, or for Windows, right-clicking on Command Prompt from the Start Menu and selecting "Run as Administrator".
 * It is advised to turn off any antivirus software that you may have installed during setup and usage of Catapult - tasks such as forwarding ports and writing hosts files may be blocked.
 * Virtualizaion must be enabled in the BIOS of the developer's workstation - follow [this how-to](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Virtualization/sect-Virtualization-Troubleshooting-Enabling_Intel_VT_and_AMD_V_virtualization_hardware_extensions_in_BIOS.html) to get started.
 * Using a VPN client during usage of LocalDev may result in lost communication between your workstation and the guests, requiring a `vagrant reload` to regain SSH and/or WinRM communication.
@@ -230,23 +232,23 @@ Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#insta
 
 Catapult is controlled via Vagrant and the command line of a developer's workstation - below is a list of required software that will need to be installed.
 
-* OS X workstations: Compatible and supported
+* macOS workstations: Compatible and supported
 * Linux workstations: Compatible and supported
 * Windows workstations: Limited testing and support
 
 1. **Vagrant**
-    * **Using OS X?**
+    * **Using macOS?**
         1. Ensure Xcode Command Line Tools are installed by running `xcode-select --install` from Terminal
-        2. Download and install the latest verson of Vagrant from https://www.vagrantup.com/downloads.html
+        2. Download and install the latest version of Vagrant v1 from https://releases.hashicorp.com/vagrant/
     * **Using Windows?**
-        1. Download and install the latest verson of Vagrant from https://www.vagrantup.com/downloads.html
+        1. Download and install the latest version of Vagrant v1 from https://releases.hashicorp.com/vagrant/
     * **Using Linux (Debian, Ubuntu)?**
-        1. Download the latest version of Vagrant respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.8.1/vagrant_1.8.1_x86_64.deb`
-        2. Install Vagrant using dpkg e.g. `sudo dpkg --install vagrant_1.8.1_x86_64.deb`
+        1. Download the latest version of Vagrant v1 respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.9.8/vagrant_1.9.8_x86_64.deb`
+        2. Install Vagrant using dpkg e.g. `sudo dpkg --install vagrant_1.9.8_x86_64.deb`
         3. Install Network File System (NFS) `sudo apt-get install nfs-kernel-server`
     * **Using Linux (Fedora, Red Hat, Suse)?**
-        1. Download the latest version of Vagrant respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.8.1/vagrant_1.8.1_x86_64.rpm`
-        2. Install Vagrant using yum e.g. `sudo yum install vagrant_1.8.1_x86_64.rpm`
+        1. Download the latest version of Vagrant v1 respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.9.8/vagrant_1.9.8_x86_64.rpm`
+        2. Install Vagrant using yum e.g. `sudo yum install vagrant_1.9.8_x86_64.rpm`
 2. **Vagrant Plugins**
     1. Open your command line and install the following Vagrant plugins:
         1. `vagrant plugin install vagrant-aws`
@@ -258,7 +260,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
         4. `vagrant plugin install vagrant-vbguest`
             * [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
 3. **VirtualBox**
-    * **Using OS X?**
+    * **Using macOS?**
         1. Download and install the latest version of VirtualBox from https://www.virtualbox.org/wiki/Downloads
     * **Using Windows?**
         1. Download and install the latest version of VirtualBox from https://www.virtualbox.org/wiki/Downloads
@@ -267,7 +269,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
     * **Using Linux (Fedora, Red Hat, Suse)?**
         1. Download and install the latest version of VirtualBox using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
 4. **GPG2**
-    * **Using OS X?**
+    * **Using macOS?**
         1. Download and install GPG Suite from https://gpgtools.org
     * **Using Windows?**
         1. Download and install Gpg4win from http://gpg4win.org/download.html
@@ -275,7 +277,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
         1. GPG is included in the base distribution in most cases.
         1. If being prompted by the Passphrase GUI Agent, comment out 'use-agent' in `~/.gnupg/gpg.conf`
 5. **Git**
-    * **Using OS X?**
+    * **Using macOS?**
         1. Git commandline is included in the base distribution in most cases.
         1. For a streamlined Git GUI, download and install SourceTree from https://www.sourcetreeapp.com/
     * **Using Windows?**
@@ -284,7 +286,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
         1. Git commandline is included in the base distribution in most cases.
         1. For a streamlined Git GUI, download and install SmartGit from http://www.syntevo.com/smartgit/
 6. **Terminal**
-    * **Using OS X?**
+    * **Using macOS?**
         1. The terminal in the base distrubitions are 100% compatible.
     * **Using Windows?**
         1. Download and install Cygwin from https://cygwin.com/install.html
@@ -550,6 +552,8 @@ To avoid having to manually configure the Bamboo project, plans, stages, jobs, a
 ### 6. **Email:**
 1. **SendGrid** sign-up and configuration
     1. Create a SendGrid account at https://sendgrid.com/
+        1. Place the username that you used to sign up for SendGrid at `~/secrets/configuration.yml["company"]["sendgrid_username"]`
+        2. Place the password of the account for SendGrid at `~/secrets/configuration.yml["company"]["sendgrid_password"]`
     2. Sign in to your SendGrid account
     3. Go to Settings > API Keys.
     4. Generate an API key named "Catapult" and place at `~/secrets/configuration.yml["company"]["sendgrid_api_key"]`
@@ -843,17 +847,29 @@ The following options are available:
     * required: no
     * dependency: `force_auth:`
     * example: `force_auth_exclude: ["production"]`
-        * array of select environments ["dev","test","qc","production"] to exclude from the `force_auth` option
+        * array of select environments `["dev","test","qc","production"]` to exclude from the `force_auth` option
 * `force_https:`
     * required: no
     * option: `force_https: true`
         * rewrites all http traffic to https
         * all `dev.` domains in LocalDev will have an unsigned certificate warning
         * free certificates are created and managed for you compliments of CloudFlare (single-subdomain) and Let's Encrypt (multi-subdomain)
+* `force_ip:`
+    * required: no
+    * example: `force_ip: ["208.80.154.224"]`
+        * an array of valid IPv4 or IPv6 addresses that denies all traffic except for traffic coming from the defined addresses
+        * option applies to LocalDev, Test, QC, and Production unless `force_ip_exclude` is defined
+        * can be used as an alternative to `force_auth` for when HTTP basic authentication cannot be used. e.g. [Drupal 8 Basic Auth Module](https://www.drupal.org/project/drupal/issues/2842858)
+        * can be used in addition to `force_auth` for added security
+* `force_ip_exclude:`
+    * required: no
+    * dependency: `force_ip:`
+    * example: `force_ip_exclude: ["production"]`
+        * array of select environments `["dev","test","qc","production"]` to exclude from the `force_ip` option
 * `repo:`
     * required: yes
     * example: `repo: git@github.com:devopsgroup-io/devopsgroup-io.git`
-        * the existing source code repository of your website (please create one if none exists)
+        * the existing source code repository of your website (repo automatically created if none exists)
         * GitHub and Bitbucket over SSH are supported, HTTPS is not supported
 * `software:`
     * required: no
@@ -940,9 +956,9 @@ Software | `software_auto_update` Support | Install Approach | Install Notes
 ---------|--------------------------------|------------------|--------------
 `codeigniter2`      | [:white_check_mark:](http://www.codeigniter.com/userguide2/installation/upgrading.html) |          | Follow the [Installation Instructions](https://www.codeigniter.com/userguide2/installation/index.html).
 `codeigniter3`      | [:white_check_mark:](https://www.codeigniter.com/userguide3/installation/upgrading.html) |          | Follow the [Installation Instructions](https://www.codeigniter.com/userguide3/installation/index.html).
-`drupal6`           | :white_check_mark:                                                       | Drush    | `drush dl drupal-6`
-`drupal7`           | :white_check_mark:                                                       | Drush    | `drush dl drupal-7`
-`drupal8`           | :white_check_mark:                                                       | Drush    | `drush dl drupal-8`
+`drupal6`           | :white_check_mark:                                                       | Drush    | `drush pm-download drupal-6`
+`drupal7`           | :white_check_mark:                                                       | Drush    | `drush pm-download drupal-7`
+`drupal8`           | :white_check_mark:                                                       | Drush    | `drush pm-download drupal-8`
 `elgg1`             | [:x:](http://learn.elgg.org/en/2.0/admin/upgrading.html)                 | Fork     | Follow the installation [Overview](http://learn.elgg.org/en/2.0/intro/install.html). Catapult requires the `dataroot` directory to be within the webroot, it's pertinant to create a `.gitignore` to ignore and `.htaccess` to deny access to this directory.
 `elgg2`             | [:x:](http://learn.elgg.org/en/2.0/admin/upgrading.html)                 | Fork     | Follow the installation [Overview](http://learn.elgg.org/en/2.0/intro/install.html). Catapult requires the `dataroot` directory to be within the webroot, it's pertinant to create a `.gitignore` to ignore and `.htaccess` to deny access to this directory.
 `expressionengine3` | [:x:](https://docs.expressionengine.com/latest/installation/update.html) | Download |
@@ -1059,14 +1075,14 @@ Progressive Web App (PWA), in general, is a term used to denote web apps that us
 
 ### Email ###
 
-Email delivery is an art, there are many considerations when trying to get an email into someone's inbox. Some considerations include, IP reputation, bounce management, analytics visibility, and more. For that reason, Catapult requires setup of a SendGrid account and configuration of SMTP within your website's software. To configure SendGrid with your software type, please set the SMTP configurtion to the following:
+Email delivery is an art, there are many considerations when trying to get an email into someone's inbox. Some considerations include, IP reputation, bounce management, analytics visibility, and more. For that reason, Catapult requires setup of a SendGrid account and configuration of SMTP within your website's software. To configure SendGrid with your website's software, please set the SMTP configuration to the following:
 
 * SMTP host: `smtp.sendgrid.net`
 * SMTP port: `587`
 * Encryption: `TLS`
 * Authenticaion: `yes`
-* Username: your SendGrid account username
-* Password: your SendGrid account password
+* Username: `~/secrets/configuration.yml["company"]["sendgrid_username"]`
+* Password: `~/secrets/configuration.yml["company"]["sendgrid_password"]`
 
 An example of implementation would be the [WP Mail SMTP](https://wordpress.org/plugins/wp-mail-smtp/) WordPress plugin.
 
@@ -1074,6 +1090,15 @@ An example of implementation would be the [WP Mail SMTP](https://wordpress.org/p
 
 * With SendGrid: Catapult automatically configures SendGrid to forward bounces to your `~/secrets/configuration.yml["company"]["email"]` to clear hard bounces every 5 days and soft bounces every 3 days.
 * Without SendGrid: Postfix will retry sending every hour for five days. Catapult cron looks for bounces and emails them to your `~/secrets/configuration.yml["company"]["email"]` daily.
+
+### Upload Limits ###
+
+The following HTTP request limits are defined for all websites:
+
+* Maximum request body size excluding the size of any files being transported in the request (`SecRequestBodyNoFilesLimit`): `128 KB`
+* Maximum request body size (`SecRequestBodyLimit`): `64 MB`
+* Maximum size of post data allowed (`post_max_size`): `64 MB`
+* Maximum size of an uploaded file (`upload_max_filesize`): `16 MB`
 
 ### Database Migrations ###
 
@@ -1310,9 +1335,15 @@ Catapult enforces many security best practices that are important for you to be 
 
 * Weekly ClamAV antivirus scan of website files
 
-## Security Breach Notification Laws ##
+## Data Protection ##
 
-Catapult introduces many best practice data protection measures, however, security of personal data is ultimately your responsibility. Generally speaking, if personal information is compromised, you are required by law to notify the party. Laws vary country-by-country and state-by-state, and can be enforcable in the state or country where the individual is physically located when the data is collected. This means that, even if your website is hosted within the U.S., you could potentially be subject to another country's data protection laws.
+Catapult introduces many best practice data protection measures, however, security of personal data is ultimately your responsibility. Generally speaking, if personal information is compromised, you are required by law to notify the party. Laws vary country-by-country and state-by-state, and can be enforcable in the state or country where the individual is physically located when the data is collected. This means that, even if your website is hosted within the U.S., you could potentially be subject to another country's data protection laws. The main principles of data protection, include:
+
+* Privacy by design
+* Right to access
+* Right to be forgotten
+* Data portability
+* Breach notification
 
 ### United States ###
 
