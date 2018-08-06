@@ -121,8 +121,8 @@ Traditional Tooling (VMs & Shell)             | :white_check_mark:              
 Multi-Platform (Linux & Windows)              | :white_check_mark:                    | :x:                           | :x:
 Supported PHP Software                        | 17                                    | 2                             | 1
 Supported .NET Software                       | TBA                                   | :x:                           | :x:
-Minimum Bundled<br>Monthly Cost               | $40                                   | $400                          | $134
-Websites per Instance/Subscription            | Unlimited                             | 1                             | 1
+Minimum Bundled<br>Monthly Cost               | $45                                   | $400                          | $134
+Websites per instance                         | Unlimited                             | 1                             | 1
 Managed Workflow                              | Git Flow (branch-based environments)  | :x:                           | :x:
 Managed Software Workflow Model               | Upstream or Downstream                | :x:                           | :x:
 Agile Methodology Focus                       | Scrum                                 | :x:                           | :x:
@@ -178,6 +178,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
         - [Software Updates and Fresh Installs](#software-updates-and-fresh-installs)
         - [HTTPS and Certificates](#https-and-certificates)
         - [Forcing www](#forcing-www)
+        - [Debug Output](#debug-output)
         - [Cache Busting](#cache-busting)
         - [Progressive Web App](#progressive-web-app)
         - [Email](#email)
@@ -195,7 +196,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
         - [Website Rollbacks](#website-rollbacks)
 - [Security](#security)
     - [Preventive Controls](#preventive-controls)
-    - [Detective Controls](#reactive-controls)
+    - [Detective Controls](#detective-controls)
     - [Corrective Controls](#corrective-controls)
     - [Data Protection](#data-protection)
         - [United States](#united-states)
@@ -340,23 +341,20 @@ Catapult is designed with a distributed services model, below are the required t
 
 Service | Product | Use Case | Monthly Cost
 --------|---------|----------|-------------
-&dagger;Cloud Hosting: Red Hat (PHP) | DigitalOcean | 6 Web and Database Servers | \*$30+
-&dagger;Cloud Hosting: Windows (.NET) | Amazon Web Services (AWS) | 6 Web and Database Servers | \*$80+
+&dagger;Cloud Hosting: Red Hat (PHP) | DigitalOcean | Web and Database Servers (6) | \*$30+
+&dagger;Cloud Hosting: Windows (.NET) | Amazon Web Services (AWS) | Web and Database Servers (6) | \*$80+
 Source Code Repositories | Atlassian Bitbucket | Private Repositories | Free
 Source Code Repositories | GitHub | Public Repositories | Free
-Continuous Integration | Amazon Web Services (AWS) | Build Server | \**$0+
-Continuous Integration | Atlassian Bamboo Server | Deployment Management | $10
+Continuous Integration | Atlassian Bamboo Server | Build Server | $15
 DNS | CloudFlare | Cloud DNS | Free
-Monitoring | New Relic Application Performance Monitoring (APM), Browser, Server, and \***Synthetics | Performance and Infrastructure Monitoring | Free
-**Total** | | | &dagger;$40+
+Monitoring | New Relic Application Performance Monitoring (APM), Browser, Server, and \**Synthetics | Performance and Infrastructure Monitoring | Free
+**Total** | | | &dagger;$45+
 
 &dagger; Only one platform (Red Hat or Windows) is required to have a full-featured infrastructure. Generally speaking, the industry standard Red Hat platform will be used.
 
 \* Depending on load, resources may need to be increased, starting at an additional [$5 per month per server](https://www.digitalocean.com/pricing/).
 
-\** New AWS customers receive 1-year free of micro services. Beyond this period, an example of running nightly builds for all environments only incur $2-3 per month.
-
-\*** New Relic customers receive a trial "pro" period ranging from 14-days to 30-days, however, there is [no free tier beyond the trial](#partnerships)
+\** New Relic customers receive a trial "pro" period ranging from 14-days to 30-days, however, there is [no free tier beyond the trial](#partnerships)
 
 ### 1. **Cloud Hosting:**
 1. **DigitalOcean** sign-up and configuration
@@ -406,52 +404,17 @@ Bitbucket provides free private repositories and GitHub provides free public rep
     2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key in https://github.com/settings/ssh named "Catapult"
 
 ### 3. **Automated Deployments:**
-Please note that Bamboo Cloud's end-of-life is January 31, 2017. For new setups, please use the **Bamboo Server sign-up and set-up** documentation. Existing Catapult user's may still be using Bamboo Cloud, in that case, please use the **Bamboo Cloud sign-up and set-up** documentation.
-
-**Bamboo Cloud sign-up and set-up**
-
-1. Create a Bamboo Cloud account at https://www.atlassian.com/software/bamboo
-2. Sign in to your new custom Bamboo instance https://[your-name-here].atlassian.net
-3. Place your Bamboo base URL at `~/secrets/configuration.yml["company"]["bamboo_base_url"]`, the format should be https://[your-name-here].atlassian.net/builds/
-4. Click the settings gear from the top right in the header and select Elastic instances:
-    1. Click Configuration from the left
-    2. Click Edit configuration
-        1. **Amazon Web Services configuration**
-            1. Set your AWS EC2 "Bamboo" Access Key ID and Secret Access Key from `~/secrets/configuration.yml["company"]["aws_access_key"]` and `~/secrets/configuration.yml["company"]["aws_secret_key"]`
-            2. Region: `US East (Northern Virginia)`
-        2. **Automatic elastic instance management**
-            1. Elastic instance management: `Custom`
-            2. Idle agent shutdown delay: `10`
-            3. Allowed non-Bamboo instances: `1`
-            4. Maximum number of instances to start at once: `2`
-            5. Number of builds in queue threshold: `1`
-            6. Number of elastic builds in queue threshold: `1`
-            7. Average queue time threshold: `2`
-        3. Click Save
-5. Click the settings gear from the top right in the header and select Elastic instances:
-    1. Click Image configurations from the left
-        1. Disable all of the elastic images
-        2. Create elastic image configuration:
-            1. Name: `Catapult`
-            2. AMI ID: `ami-eb5b8080`
-            3. Instance type: `T2 Burstable Performance Micro`
-            4. Availability Zone: `Chosen by EC2`
-            5. Product: `Linux/UNIX`
-            6. Click Save
 
 **Bamboo Server set-up**
 
 1. Sign up for an Atlassian account at https://my.atlassian.com/
-2. Access your My Atlassian license section at https://my.atlassian.com/products/index
-    * Please read the Bamboo Licensing and Pricing page for more information https://www.atlassian.com/licensing/bamboo
-3a. For current Bamboo Cloud customers transitioning to Bamboo Server, you will see a Bamboo Starter License
-3b. For new Bamboo customers, please purchase a Bamboo Server license from https://www.atlassian.com/purchase/product/bamboo 
-4. It's now time to bring up your build server, please run `vagrant up ~/secrets/configuration.yml["company"]["name"]-build`
+2. Purchase the $10 Bamboo Server license from https://www.atlassian.com/purchase/product/bamboo 
+3. It's now time to bring up your build server, please run `vagrant up ~/secrets/configuration.yml["company"]["name"]-build`
     * The initial `up` will take some time for, please be patient
-5. Login to DigitalOcean to obtain the IP address of the virtual machine to access via URL
+4. Login to DigitalOcean to obtain the IP address of the virtual machine to access via URL
     * Place your Bamboo base URL at `~/secrets/configuration.yml["company"]["bamboo_base_url"]`, the format should be http://[digitalocean-ip-here]/
-6. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license.
-7. You will next be prompted to enter the following information:
+5. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license.
+6. You will next be prompted to enter the following information:
     * Username (required) - root
     * Password (required) - specify a complex password
     * Confirm password (required)
@@ -463,7 +426,6 @@ Please note that Bamboo Cloud's end-of-life is January 31, 2017. For new setups,
 To avoid having to manually configure the Bamboo project, plans, stages, jobs, and tasks configuration, you may optionally install and purchase the "Bob Swift Atlassian Add-ons - Bamboo CLI Connector" Bamboo add-on. Otherwise, the manual setup configuration steps are outlined below:
 
 1. Place your Bamboo username at `~/secrets/configuration.yml["company"]["bamboo_username"]`
-    * Normally admin for Bamboo Cloud
     * Normally root for Bamboo Server
 2. Place your Bamboo password at `~/secrets/configuration.yml["company"]["bamboo_password"]`
 3. Disable anonymous user access by clicking the gear at the top right and going to Overview
@@ -940,13 +902,11 @@ The following options are available:
 
 ## Website Development ##
 
-Performing development in a local environment is critical to reducing risk by exacting the environments that exist upstream, accomplished with Vagrant and VirtualBox.
+Website development is done on the developer's workstation using the LocalDev environment for local and realtime software development in an environment that is exactly matchinng to upstream environments.
 
 ### Website Repositories ###
 
-Repositories for websites are cloned into the Catapult instance at `~/repositories` and in the respective apache or iis folder, listed by domain name.
-
-* Repositories are linked between the host and guest for realtime development.
+Once websites are added to your configuration and you have performed a provision of your LocalDev environment, repositories for websites are cloned into your Catapult instance at `~/repositories` and into the respective `apache` or `iis` folder, listed by domain name. Website repository folders are linked between the developer's workstation (host) and the LocalDev environment (guest) for realtime development.
 
 ### Software Updates and Fresh Installs ###
 
@@ -1058,15 +1018,32 @@ Software | Approach | Documentation
 `xenforo1`          |                      |
 `zendframework2`    |                      |
 
+### Debug Output ###
+
+Debug output, unlike logging, is a configuration that outputs exceptions on-screen of your website while you're developing in LocalDev for convenience. It also aligns with the testing activies as defined in [Release Management](#release-management). Debug output is configured at two levels; PHP and software specific, the below chart provides a breakdown.
+
+| LocalDev | Test | QC | Production
+|----------|------|----|-----------
+| Verbose | Verbose | Hidden | Hidden
+
+
 ### Cache Busting ###
 
-Caching plays a very important role in the performance of your website and enforces and recommends many [performance optimizations](#performance). Catapult generally enforces caching of files to 7 days, because of this, to ensure that a new website release is reflected in a user's browser you should consider [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of website resource files. Here's an example:
+Caching plays a very important role in the performance of your website and enforces and recommends many [performance optimizations](#performance). Catapult generally enforces caching of files to 7 days, because of this, to ensure that a new website release is reflected in a user's browser you should consider [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of website resource files. Here's an example of query string cache busting:
 
-`<link rel="stylesheet" href="style.min.css?v=3.4.1">`
+`<link rel="stylesheet" href="/css/style.min.css?v=3.4.1">`
 
 Ready to deploy a new release? Update the version number and the cache will be "busted":
 
-`<link rel="stylesheet" href="style.min.css?v=3.4.2">`
+`<link rel="stylesheet" href="/css/style.min.css?v=3.4.2">`
+
+A more complicated, yet effective method of cache busting is by using versioned folders. Resources with a "?" in the URL are not cached by some proxy caching servers. Here is an example of URL path cache busting:
+
+`<link rel="stylesheet" href="/css/3.4.1/style.min.css">`
+
+Ready to deploy a new release? Update the version number and the cache will be "busted":
+
+`<link rel="stylesheet" href="/css/3.4.2/style.min.css">`
 
 Each software type will vary as to the standard convention of website resource file versioning, here is a [Wordpress example](https://wordpress.stackexchange.com/a/90824) to get you started.
 
@@ -1578,12 +1555,12 @@ Catapult is making the conference tour! We plan to attend the following conferen
 
 Catapult will also be seen throughout local meetups in the Philadelphia and Greater Philadelphia area! Get a chance to meet the team and engage at a personal level.
 
-* [Technical.ly Philly](http://www.meetup.com/Technically-Philly/) 6k+ technologists
-* [Tech in Motion Philly](http://www.meetup.com/TechinMotionPhilly/) 4k+ technologists
-* [Philadelphia WordPress Meetup Group](http://www.meetup.com/philadelphia-wordpress-meetup-group/) 1.5k+ technologists
-* [Philly DevOps](http://www.meetup.com/PhillyDevOps/) 1k+ technologists
+* [Technical.ly Philly](http://www.meetup.com/Technically-Philly/) 9k+ technologists
+* [Tech in Motion Philly](http://www.meetup.com/TechinMotionPhilly/) 7k+ technologists
+* [Philadelphia WordPress Meetup Group](http://www.meetup.com/philadelphia-wordpress-meetup-group/) 2k+ technologists
+* [Philly DevOps](http://www.meetup.com/PhillyDevOps/) 2k+ technologists
     * [\[09-20-2016\]  From Pets to Serverless: Deployment Panel](https://www.meetup.com/PhillyDevOps/events/232930398/)
-* [Greater Philadelphia Drupal Meetup Group](http://www.meetup.com/drupaldelphia/) .5k+ technologists
+* [Greater Philadelphia Drupal Meetup Group](http://www.meetup.com/drupaldelphia/) .75k+ technologists
 
 
 
