@@ -305,6 +305,25 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE NOT DETECTED\n"
         fi
 
+    elif [ "${software}" = "wordpress5" ]; then
+
+        version=$(cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && cat wp-includes/version.php 2>/dev/null | grep "\$wp_version" | grep --extended-regexp --only-matching --regexp="[0-9]\.[0-9][0-9]?[0-9]?(\.[0-9][0-9]?[0-9]?)?" || echo "0")
+
+        if [[ "${softwareversion_array[@]}" =~ "$(grep --only-matching --regexp="^[0-9]" <<< "${version}")" ]]; then
+            echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
+
+            if [ "${software_auto_update}" = "true" ]; then
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root plugin update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root core update
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root plugin update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root theme update --all
+            fi
+
+        else
+            echo -e "\nSUPPORTED SOFTWARE NOT DETECTED\n"
+        fi
+
     elif [ "${software}" = "xenforo1" ]; then
 
         version=$(cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && cat library/XenForo/Application.php 2>/dev/null | grep "public static \$version =" | grep --extended-regexp --only-matching --regexp="[0-9]\.[0-9][0-9]?[0-9]?(\.[0-9][0-9]?[0-9]?)?" || echo "0")
@@ -349,35 +368,36 @@ else
 fi
 
 # software file append feature
-# includes filenames beginning with a '.' in the results of filename expansion
-shopt -s dotglob
-if [ -e "/var/www/repositories/apache/${domain}/_append/" ]; then
-    echo -e "> detected an _append directory..."
-    for file in /var/www/repositories/apache/${domain}/_append/*; do
-        # ensure we're dealing with a file
-        if [ -e "$file" ]; then
-            echo -e "> verifying _append file $file..."
-            file_basename=$(basename $file)
-            if [ -e "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}" ]; then
-                echo -e "- found the matching _append file /var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}..."
-                echo -e "- removing any existing _append from /var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}..."
-                sed -i '/# CATAPULT APPEND START/,/# CATAPULT APPEND END/d' "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}"
-                echo -e "- adding _append to /var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}..."
-                append=$(<$file)
-                echo -e "${append}"
+if ([ "${1}" = "production" ] && [ "${software_workflow}" = "downstream" ]) || ([ "${1}" = "test" ] && [ "${software_workflow}" = "upstream" ]); then
+    # includes filenames beginning with a '.' in the results of filename expansion
+    shopt -s dotglob
+    if [ -e "/var/www/repositories/apache/${domain}/_append/" ]; then
+        echo -e "> detected an _append directory..."
+        for file in /var/www/repositories/apache/${domain}/_append/*; do
+            # ensure we're dealing with a file
+            if [ -e "$file" ]; then
+                echo -e "> verifying _append file $file..."
+                file_basename=$(basename $file)
+                if [ -e "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}" ]; then
+                    echo -e "- found the matching _append file /var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}..."
+                    echo -e "- removing any existing _append from /var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}..."
+                    sed -i '/# CATAPULT APPEND START/,/# CATAPULT APPEND END/d' "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}"
+                    echo -e "- adding _append to /var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}..."
+                    append=$(<$file)
+                    echo -e "${append}"
 sudo cat >> "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_basename}" << EOF
-
 # CATAPULT APPEND START
 ${append}
 # CATAPULT APPEND END
 EOF
+                fi
             fi
-        fi
-    done
-else
-    echo -e "> did not detect an _append directory, skipping..."
+        done
+    else
+        echo -e "> did not detect an _append directory, skipping..."
+    fi
+    # excludes filenames beginning with a '.' in the results of filename expansion
+    shopt -u dotglob
 fi
-# excludes filenames beginning with a '.' in the results of filename expansion
-shopt -u dotglob
 
 touch "/catapult/provisioners/redhat/logs/software_operations_file.$(catapult websites.apache.$5.domain).complete"
