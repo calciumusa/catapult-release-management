@@ -22,7 +22,16 @@ if ([ ! -z "${software}" ]); then
     echo -e "* setting ${software} admin account credentials, email address, and role..."
 fi
 
-if [ "${software}" = "drupal6" ]; then
+if [ "${software}" = "concrete58" ]; then
+
+    cd "/var/www/repositories/apache/${domain}/${webroot}" && concrete/bin/concrete5 c5:exec /catapult/provisioners/redhat/installers/software/concrete58/password_reset.php $(catapult environments.${1}.software.drupal.admin_password) --no-interaction
+    mysql --defaults-extra-file=$dbconf ${1}_${domain_valid_db_name} -e "
+        INSERT INTO ${software_dbprefix}Users (uName, uEmail, uIsActive)
+        VALUES ('admin', '$(catapult company.email)', '1')
+        ON DUPLICATE KEY UPDATE uName='admin', uEmail='$(catapult company.email)', uIsActive='1';
+    "
+
+elif [ "${software}" = "drupal6" ]; then
 
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --always-set variable-set site_mail $(catapult company.email)
 
@@ -141,6 +150,17 @@ elif [ "${software}" = "wordpress4" ]; then
     "
     wp-cli --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" user add-role 1 administrator
 
+elif [ "${software}" = "wordpress5" ]; then
+    
+    mysql --defaults-extra-file=$dbconf ${1}_${domain_valid_db_name} -e "UPDATE ${software_dbprefix}options SET option_value='$(catapult company.email)' WHERE option_name = 'admin_email';"
+    
+    mysql --defaults-extra-file=$dbconf ${1}_${domain_valid_db_name} -e "
+        INSERT INTO ${software_dbprefix}users (id, user_login, user_pass, user_nicename, user_email, user_status, display_name)
+        VALUES ('1', 'admin', MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), 'admin', '$(catapult company.email)', '0', 'admin')
+        ON DUPLICATE KEY UPDATE user_login='admin', user_pass=MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), user_nicename='admin', user_email='$(catapult company.email)', user_status='0', display_name='admin';
+    "
+    wp-cli --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" user add-role 1 administrator
+
 fi
 
 
@@ -229,6 +249,11 @@ elif [ "${software}" = "codeigniter3" ]; then
         echo $result
     fi
 
+elif [ "${software}" = "concrete58" ]; then
+
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && concrete/bin/concrete5 migrations:migrate --no-interaction
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && concrete/bin/concrete5 c5:clear-cache --no-interaction --allow-as-root
+
 elif [ "${software}" = "drupal6" ]; then
 
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes watchdog-delete all
@@ -298,6 +323,11 @@ elif [ "${software}" = "suitecrm7" ]; then
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php cron.php
 
 elif [ "${software}" = "wordpress4" ]; then
+
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root core update-db
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root cache flush
+
+elif [ "${software}" = "wordpress5" ]; then
 
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root core update-db
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root cache flush
