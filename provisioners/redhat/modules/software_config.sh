@@ -45,7 +45,8 @@ webroot=$(catapult websites.apache.$5.webroot)
 database_config_file=$(provisioners software.apache.${software}.database_config_file)
 
 
-# generate software database config files and set website software logging output
+# generate software database config files
+# set website software logging and debug output
 if ([ ! -z "${software}" ]); then
     echo -e "* generating ${software} database config file and configuring software-specific logging output..."
 fi
@@ -85,6 +86,7 @@ elif [ "${software}" = "codeigniter3" ]; then
 elif [ "${software}" = "concrete58" ]; then
 
     # set correct php version for concrete5 cli
+    sudo chmod 744 "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}/concrete/bin/concrete5"
     sed --in-place --expression "s#\#\!/usr/bin/env\sphp#\#\!/usr/bin/env /opt/rh/rh-php71/root/usr/bin/php#g" "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}/concrete/bin/concrete5"
 
     # if concrete5 is not installed, then site_install.php and site_install_user.php are used
@@ -110,6 +112,18 @@ elif [ "${software}" = "concrete58" ]; then
         cp "${file_site_install}" "${file_site_install_user}"
         sudo chmod 0444 "${file_site_install}"
         sudo chmod 0444 "${file_site_install_user}"
+    fi
+
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && concrete/bin/concrete5 c5:config set concrete.log.emails 1 --allow-as-root
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && concrete/bin/concrete5 c5:config set concrete.log.errors 1 --allow-as-root
+    if ([ "$1" = "dev" ] || [ "$1" = "test" ]); then
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && concrete/bin/concrete5 c5:config set concrete.debug.display_errors 1 --allow-as-root
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && concrete/bin/concrete5 c5:config set concrete.debug.detail debug --allow-as-root
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && concrete/bin/concrete5 c5:config set concrete.debug.error_reporting 1 --allow-as-root
+    else
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && concrete/bin/concrete5 c5:config set concrete.debug.display_errors 0 --allow-as-root
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && concrete/bin/concrete5 c5:config set concrete.debug.detail message --allow-as-root
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && concrete/bin/concrete5 c5:config set concrete.debug.error_reporting 0 --allow-as-root
     fi
 
 elif [ "${software}" = "drupal6" ]; then
@@ -158,7 +172,7 @@ elif [ "${software}" = "drupal8" ]; then
     sed --expression="s/\$databases\s=\s\[\];/${connectionstring}/g" \
         --expression="s/\$settings\['hash_salt'\]\s=\s'';/\$settings['hash_salt'] = '${unique_hash}';/g" \
         --expression="s~\$config_directories\s=\s\[\];~\$config_directories = [CONFIG_SYNC_DIRECTORY => '\\/var\\/www\\/repositories\\/apache\\/${domain}\\/${webroot}sites\\/default\\/files\\/sync'];~g" \
-        --expression="s/\$settings\['trusted_host_patterns'\]\s=\s\[\];/\$settings['trusted_host_patterns'] = ['^.+\\\.${domain_valid_regex}'];/g" \
+        --expression="s/\$settings\['trusted_host_patterns'\]\s=\s\[\];/\$settings['trusted_host_patterns'] = ['^${domain_valid_regex}','^.+\\\.${domain_valid_regex}'];/g" \
         /catapult/provisioners/redhat/installers/software/${software}/settings.php > "${file}"
 
     # create the drupal 8 sync directory
