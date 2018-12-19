@@ -84,7 +84,7 @@ Catapult orchestrates the following key components of DevOps to provide you with
 
 Catapult intelligently manages the following website software that have been chosen from trending usage statistics from [BuiltWith](https://trends.builtwith.com/cms) and aligns with the [CentOS 7 trunk](http://mirror.centos.org/centos/7/os/x86_64/Packages/) along with the [Software Collections trunk](https://www.softwarecollections.org/):
 
-Software | [Key](#websites) | Required PHP Version | Defined PHP Version | Released | End-of-Life
+Software | [Key](#websites) | Required PHP Version | Running PHP Version | Released | End-of-Life
 ---------|------------------|---------------------|---------------------|----------|------------
 CodeIgniter 2                     | `codeigniter2`         | 5.1.6  | 5.4 | January 28, 2011   | [October 31, 2015](http://forum.codeigniter.com/thread-61357.html)
 CodeIgniter 3                     | `codeigniter3`         | 5.6    | 5.6 | March 30, 2015     |
@@ -102,13 +102,14 @@ Moodle 3                          | `moodle3`              | 5.6.5  | 5.6 | Nove
 SilverStripe 3                    | `silverstripe3`        | 5.3.3  | 5.4 | June 29, 2012      |
 SuiteCRM 7                        | `suitecrm7`            | 5.5    | 5.6 | October 21, 2013   |
 WordPress 4                       | `wordpress4`           | 5.2.4  | 7.0 | September 4, 2014  |
-WordPress 5                       | `wordpress5`           | 7.0.   | 7.1 | TBD                |
+WordPress 5                       | `wordpress5`           | 5.2.4  | 7.1 | December 6, 2018   |
 XenForo 1                         | `xenforo1`             | 5.2.11 | 5.4 | March 8, 2011      |
+XenForo 2                         | `xenforo2`             | 5.4.0  | 7.1 | November 28, 2017  |
 Zend Framework 2                  | `zendframework2`       | 5.3.23 | 5.4 | September 5, 2012  |
 
-Catapult additionally supports basic PHP projects that do not have a database requirement:
+Catapult additionally supports PHP projects that do not have a database requirement:
 
-* PHP 5.4 compatible project
+* When an above software type is not defined, the default PHP version that is used is PHP v5.4. This is not configurable.
 
 Catapult additionally supports static site generators, such as, [Jekyll](https://jekyllrb.com/).
 
@@ -123,7 +124,7 @@ Source                                        | Open                            
 Subscription Feature Set                      | Bundled                               | Separated                     | Separated
 Traditional Tooling (VMs & Shell)             | :white_check_mark:                    | :x:                           | :x:
 Multi-Platform (Linux & Windows)              | :white_check_mark:                    | :x:                           | :x:
-Supported PHP Software                        | 17                                    | 2                             | 1
+Supported PHP Software                        | 20+                                   | 2                             | 1
 Supported .NET Software                       | TBA                                   | :x:                           | :x:
 Minimum Bundled<br>Monthly Cost               | $45                                   | $400                          | $134
 Websites per instance                         | Unlimited                             | 1                             | 1
@@ -245,16 +246,16 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
 1. **Vagrant**
     * **Using macOS?**
         1. Ensure Xcode Command Line Tools are installed by running `xcode-select --install` from Terminal
-        2. Download and install the latest version of Vagrant v1 from https://releases.hashicorp.com/vagrant/
+        2. Download and install the latest version of Vagrant v2.x from https://releases.hashicorp.com/vagrant/
     * **Using Windows?**
-        1. Download and install the latest version of Vagrant v1 from https://releases.hashicorp.com/vagrant/
+        1. Download and install the latest version of Vagrant v2.x from https://releases.hashicorp.com/vagrant/
     * **Using Linux (Debian, Ubuntu)?**
-        1. Download the latest version of Vagrant v1 respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.9.8/vagrant_1.9.8_x86_64.deb`
-        2. Install Vagrant using dpkg e.g. `sudo dpkg --install vagrant_1.9.8_x86_64.deb`
+        1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.2/vagrant_2.2.2_x86_64.deb`
+        2. Install Vagrant using dpkg e.g. `sudo dpkg --install vagrant_2.2.2_x86_64.deb`
         3. Install Network File System (NFS) `sudo apt-get install nfs-kernel-server`
     * **Using Linux (Fedora, Red Hat, Suse)?**
-        1. Download the latest version of Vagrant v1 respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.9.8/vagrant_1.9.8_x86_64.rpm`
-        2. Install Vagrant using yum e.g. `sudo yum install vagrant_1.9.8_x86_64.rpm`
+        1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.2/vagrant_2.2.2_x86_64.rpm`
+        2. Install Vagrant using yum e.g. `sudo yum install vagrant_2.2.2_x86_64.rpm`
 2. **Vagrant Plugins**
     1. Open your command line and install the following Vagrant plugins:
         1. `vagrant plugin install vagrant-aws`
@@ -267,13 +268,13 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
             * [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
 3. **VirtualBox**
     * **Using macOS?**
-        1. Download and install the latest version of VirtualBox v5.1 from https://www.virtualbox.org/wiki/Downloads
+        1. Download and install the latest version of VirtualBox v5.2 from https://www.virtualbox.org/wiki/Downloads
     * **Using Windows?**
-        1. Download and install the latest version of VirtualBox v5.1 from https://www.virtualbox.org/wiki/Downloads
+        1. Download and install the latest version of VirtualBox v5.2 from https://www.virtualbox.org/wiki/Downloads
     * **Using Linux (Debian, Ubuntu)?**
-        1. Download and install the latest version of VirtualBox v5.1 using Advanced Packaging Tool (APT) `sudo apt-get install virtualbox`
+        1. Download and install the latest version of VirtualBox v5.2 using Advanced Packaging Tool (APT) `sudo apt-get install virtualbox`
     * **Using Linux (Fedora, Red Hat, Suse)?**
-        1. Download and install the latest version of VirtualBox v5.1 using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
+        1. Download and install the latest version of VirtualBox v5.2 using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
 4. **GPG2**
     * **Using macOS?**
         1. Download and install GPG Suite from https://gpgtools.org
@@ -789,12 +790,13 @@ The following options are available:
     * required: yes
     * example: `domain: example.com`
     * example: `domain: subdomain.example.com`
-        * one subdomain level is supported for this root domain entry (`subdomain.example.com`)
         * this root domain entry is the Production canonical domain name without `www.`
             * a `www.` subdomain is created for you
             * the key for all management orchestration of this website
+        * one subdomain level is supported for this root domain entry (`subdomain.example.com`)
         * manages DNS of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
             * `dev.example.com`, `test.example.com`, `qc.example.com`, `example.com`
+            * `www.dev.example.com`, `www.test.example.com`, `www.qc.example.com`, `www.example.com`
 * `domain_tld_override:`
     * required: no
     * example: `domain_tld_override: mycompany.com`
@@ -802,6 +804,7 @@ The following options are available:
             * useful when you cannot or do not wish to host the Test/QC website at the `domain`
         * appends the `domain_tld_override` for Environments
             * `dev.example.com.mycompany.com`, `test.example.com.mycompany.com`, `qc.example.com.mycompany.com`, `example.com.mycompany.com`
+            * `www.dev.example.com.mycompany.com`, `www.test.example.com.mycompany.com`, `www.qc.example.com.mycompany.com`, `www.example.com.mycompany.com`
         * PLEASE NOTE: When removing this option from a website with `software:`, you need to manually replace URLs in the database respective to the `software_workflow:` option.
             * ie `vagrant ssh mycompany.com-test-redhat-mysql`
             * `wp-cli --allow-root --path="/var/www/repositories/apache/example.com/(webroot if applicable)" search-replace ":\/\/(www\.)?(dev\.|test\.)?(example\.com\.mycompany\.com)" "://example.com" --regex`
@@ -866,6 +869,7 @@ The following options are available:
     * option: `software: wordpress4`
     * option: `software: wordpress5`
     * option: `software: xenforo1`
+    * option: `software: xenforo2`
     * option: `software: zendframework2`
 * `software_auto_update:`
     * required: no
@@ -939,6 +943,7 @@ Software | Install Approach | Install Notes
 `wordpress4`        | Fork     |
 `wordpress5`        | Fork     |
 `xenforo1`          | Download |
+`xenforo2`          | Download |
 `zendframework2`    | Fork     | Your best bet is to start from the [zendframework/ZendSkeletonApplication](https://github.com/zendframework/ZendSkeletonApplication) GitHub project. Catapult assumes Zend Framwork is at the root of your repo and writes a database config file at `config/autoload/global.php`, you will also need to set `webroot: public/` in your Catapult configuration.
 
 ### Software Auto Updates ###
@@ -965,6 +970,7 @@ Software | `software_auto_update` Support
 `wordpress4`        | :white_check_mark:
 `wordpress5`        | :white_check_mark:
 `xenforo1`          | [:x:](https://xenforo.com/help/upgrades/)
+`xenforo2`          | :white_check_mark:
 `zendframework2`    | :white_check_mark:
 
 In the scenario where an update may overwrite customizations to a file that is expected to be able to be customized (e.g. `.htaccess` or `robots.txt`), you may create an `_append` directory within the repository root of the website with files containing your customizations.
@@ -1060,6 +1066,7 @@ Software | Approach | Documentation
 `wordpress4`        | Database             | http://codex.wordpress.org/Changing_The_Site_URL
 `wordpress5`        | Database             | http://codex.wordpress.org/Changing_The_Site_URL
 `xenforo1`          |                      |
+`xenforo2`          |                      |
 `zendframework2`    |                      |
 
 ### Debug Output ###
@@ -1155,6 +1162,7 @@ Software | Tool | Command | Documentation
 `wordpress4`        | WP-CLI          | `wp-cli core update-db`                                | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
 `wordpress5`        | WP-CLI          | `wp-cli core update-db`                                | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
 `xenforo1`          |                 |                                                        |
+`xenforo2`          |                 |                                                        |
 `zendframework2`    |                 |                                                        |
 
 ### Refreshing Databases ###
