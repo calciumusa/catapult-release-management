@@ -56,9 +56,13 @@ if [ -d "/var/www/repositories/apache/${domain}/.git" ]; then
             if ! grep -q "${webroot}${softwareroot}${database_config_file}" "/var/www/repositories/apache/${domain}/.gitignore"; then
                sudo bash -c "echo \"${webroot}${softwareroot}${database_config_file}\" >> \"/var/www/repositories/apache/${domain}/.gitignore\""
             fi
-            # manage the new relic ini file entry in the .gitignore file
+            # manage the php-fpm .user.ini file entry in the .gitignore file
             if ! grep -q "${webroot}${softwareroot}.user.ini" "/var/www/repositories/apache/${domain}/.gitignore"; then
                sudo bash -c "echo \"${webroot}${softwareroot}.user.ini\" >> \"/var/www/repositories/apache/${domain}/.gitignore\""
+            fi
+            # manage the _sql directory entry in the .gitignore file
+            if ! grep -q "_sql" "/var/www/repositories/apache/${domain}/.gitignore"; then
+               sudo bash -c "echo \"_sql\" >> \"/var/www/repositories/apache/${domain}/.gitignore\""
             fi
             # add everything in the repository to the git index (keep in mind untracked file stores)
             cd "/var/www/repositories/apache/${domain}" \
@@ -89,7 +93,7 @@ if [ -d "/var/www/repositories/apache/${domain}/.git" ]; then
                                 echo -e "- this website file store will be rsynced"
                                 echo -e "- rely on virtual machine backups for disaster recovery"
                                 cd "/var/www/repositories/apache/${domain}" \
-                                    && git reset --all "${file_store}"
+                                    && git reset --mixed "${file_store}"
                             else
                                 echo -e "- this website file store is tracked and within the limit to commit [$(( ${file_store_size} / 1024 ))MB / $(( ${directory_size_maximum} / 1024 ))MB max]"
                                 echo -e "- this website file store will be committed"
