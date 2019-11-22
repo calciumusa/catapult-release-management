@@ -16,6 +16,10 @@ else
     software_auto_update="false"
 fi
 
+# expose the alternate software tool version aliases
+shopt -s expand_aliases
+source ~/.bashrc
+
 # only auto-update if the tools are available
 if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/null; then
 
@@ -55,13 +59,13 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
 
             if [ "${software_auto_update}" = "true" ]; then
-                if [ "${version}" != "3.1.9" ]; then
+                if [ "${version}" != "3.1.11" ]; then
                     # https://www.codeigniter.com/userguide3/installation/upgrading.html
                     git clone https://github.com/bcit-ci/CodeIgniter "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter"
-                    cd "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter" && git checkout tags/3.1.9
+                    cd "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter" && git checkout tags/3.1.11
                     # upgrading from 3.0.0 to 3.0.1
                     yes | cp -rf /catapult/provisioners/redhat/installers/temp/$domain/codeigniter/application/views/errors/cli/* "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}/application/views/errors/cli"
-                    # upgrading from 3.1.8 to 3.1.9
+                    # upgrading from 3.1.8 to 3.1.9 and from 3.1.10 to 3.1.11
                     yes | cp -rf /catapult/provisioners/redhat/installers/temp/$domain/codeigniter/application/config/mimes.php "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}/application/config/mimes.php"
                     # upgrading constant
                     yes | cp -rf /catapult/provisioners/redhat/installers/temp/$domain/codeigniter/system/* "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}/system"
@@ -311,11 +315,11 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
 
             if [ "${software_auto_update}" = "true" ]; then
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root theme update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root plugin update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root core update --version=4.9
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root plugin update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root plugin update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root core update --version=4.9
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root plugin update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root theme update --all
             fi
 
         else
@@ -330,11 +334,11 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
 
             if [ "${software_auto_update}" = "true" ]; then
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root theme update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root plugin update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root core update
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root plugin update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root plugin update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root core update
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root plugin update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root theme update --all
             fi
 
         else

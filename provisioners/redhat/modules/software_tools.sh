@@ -44,7 +44,7 @@ fi
 # update to specific drush version
 cd /usr/local/src/drush \
     && git fetch \
-    && git checkout --force 8.1.18 \
+    && git checkout --force 8.3.0 \
     && composer install
 drush --version
 
@@ -67,6 +67,9 @@ fi
 # https://make.wordpress.org/cli/handbook/installing/#using-a-custom-php-binary
 if ! grep -q "alias wp-cli-php71='/opt/rh/rh-php71/root/usr/bin/php /usr/local/src/wp-cli/wp-cli.phar'" ~/.bashrc; then
     sudo bash -c "echo -e \"\nalias wp-cli-php71='/opt/rh/rh-php71/root/usr/bin/php /usr/local/src/wp-cli/wp-cli.phar'\" >> ~/.bashrc"
+fi
+if ! grep -q "alias wp-cli-php72='/opt/rh/rh-php72/root/usr/bin/php /usr/local/src/wp-cli/wp-cli.phar'" ~/.bashrc; then
+    sudo bash -c "echo -e \"\nalias wp-cli-php72='/opt/rh/rh-php72/root/usr/bin/php /usr/local/src/wp-cli/wp-cli.phar'\" >> ~/.bashrc"
 fi
 # update to latest wp-cli
 wp-cli --allow-root cli update --yes
