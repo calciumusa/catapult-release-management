@@ -77,6 +77,18 @@ elif [ "${software}" = "drupal8" ]; then
         UPDATE users_field_data SET name='admin', mail='$(catapult company.email)', status='1' WHERE uid='1';
     "
 
+elif [ "${software}" = "drupal9" ]; then
+    
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.site mail --value="$(catapult company.email)"
+
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush user-create "admin" --mail="$(catapult company.email)" --password="$(catapult environments.${1}.software.drupal.admin_password)"
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush user-password 1 --password="$(catapult environments.${1}.software.drupal.admin_password)"
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush user-add-role "administrator" --uid=1
+
+    mysql --defaults-extra-file=$dbconf ${1}_${domain_valid_db_name} -e "
+        UPDATE users_field_data SET name='admin', mail='$(catapult company.email)', status='1' WHERE uid='1';
+    "
+
 elif [ "${software}" = "elgg1" ]; then
     
     mysql --defaults-extra-file=$dbconf ${1}_${domain_valid_db_name} -e "
@@ -254,7 +266,6 @@ elif [ "${software}" = "drupal7" ]; then
 elif [ "${software}" = "drupal8" ]; then
 
     # https://www.drupal.org/node/2598914
-
     if [ "$1" = "dev" ]; then
         cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance cache.page.max_age 0
         cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance css.preprocess 0
@@ -265,34 +276,17 @@ elif [ "${software}" = "drupal8" ]; then
         cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance js.preprocess 1
     fi
 
-elif [ "${software}" = "wordpress4" ]; then
+elif [ "${software}" = "drupal9" ]; then
 
-    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root plugin activate w3-total-cache
+    # https://www.drupal.org/node/2598914
     if [ "$1" = "dev" ]; then
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set pgcache.enabled false --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set dbcache.enabled false --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set objectcache.enabled false --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set browsercache.enabled false --type=boolean
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance cache.page.max_age 0
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance css.preprocess 0
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance js.preprocess 0
     else
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set pgcache.enabled true --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set dbcache.enabled false --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set objectcache.enabled false --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set browsercache.enabled false --type=boolean
-    fi
-
-elif [ "${software}" = "wordpress5" ]; then
-
-    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root plugin activate w3-total-cache
-    if [ "$1" = "dev" ]; then
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set dbcache.enabled false --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set pgcache.enabled false --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set objectcache.enabled false --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set browsercache.enabled false --type=boolean
-    else
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set dbcache.enabled true --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set pgcache.enabled false --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set objectcache.enabled false --type=boolean
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set browsercache.enabled false --type=boolean
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance cache.page.max_age 900
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance css.preprocess 1
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance js.preprocess 1
     fi
 
 fi
@@ -351,6 +345,13 @@ elif [ "${software}" = "drupal7" ]; then
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes cache-clear all
 
 elif [ "${software}" = "drupal8" ]; then
+
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes watchdog-delete all
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes core-cron
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes updatedb
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes cache-rebuild
+
+elif [ "${software}" = "drupal9" ]; then
 
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes watchdog-delete all
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes core-cron

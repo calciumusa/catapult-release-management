@@ -91,7 +91,7 @@ CodeIgniter 3                     | `codeigniter3`         | 5.6    | 7.1 | Marc
 concrete5 8                       | `concrete58`           | 5.5.9  | 7.1 | December 1, 2016   |
 Drupal 6                          | `drupal6`              | 5.4    | 5.4 | February 13, 2008  | [February 24, 2016](https://www.drupal.org/drupal-6-eol)
 Drupal 7                          | `drupal7`              | 5.2.5  | 7.1 | January 5, 2011    |
-Drupal 8                          | `drupal8`              | 5.5.9  | 7.1 | November 19, 2015  |
+Drupal 8                          | `drupal8`              | 7.0.8  | 7.2 | November 19, 2015  |
 Elgg 1                            | `elgg1`                | 5.4    | 5.4 | August 20, 2008    |
 Elgg 2                            | `elgg2`                | 5.6    | 7.1 | December 14, 2015  |
 ExpressionEngine 3                | `expressionengine3`    | 5.3.10 | 5.4 | October 13, 2015   | [December 14, 2018](https://expressionengine.com/blog/version-3-end-of-life)
@@ -102,7 +102,7 @@ Moodle 3                          | `moodle3`              | 5.6.5  | 7.1 | Nove
 SilverStripe 3                    | `silverstripe3`        | 5.3.3  | 5.4 | June 29, 2012      |
 SuiteCRM 7                        | `suitecrm7`            | 5.5    | 7.1 | October 21, 2013   | [November 15, 2019](http://support.sugarcrm.com/Resources/Supported_Versions/)
 WordPress 4                       | `wordpress4`           | 5.2.4  | 7.1 | September 4, 2014  |
-WordPress 5                       | `wordpress5`           | 5.2.4  | 7.1 | December 6, 2018   |
+WordPress 5                       | `wordpress5`           | 5.2.4  | 7.2 | December 6, 2018   |
 XenForo 1                         | `xenforo1`             | 5.2.11 | 5.4 | March 8, 2011      | [December 31, 2019](https://xenforo.com/community/threads/xenforo-1-5-end-of-life-schedule.157679/)
 XenForo 2                         | `xenforo2`             | 5.4.0  | 7.1 | November 28, 2017  |
 Zend Framework 2                  | `zendframework2`       | 5.3.23 | 5.4 | September 5, 2012  |
@@ -857,14 +857,17 @@ The following options are available:
 * `software:`
     * required: no
     * description: manages many aspects of software respective to each environment for websites with supported software types
-        * maintains software database config file
-        * manages tracked and untracked software file stores intelligently via git and rsync
-        * manages permissions of software file store containers
-        * manages software operations such as cron, garbage collection, and caches
-        * manages software database migrations
-        * manages software database backups and restores intelligently via git
-        * manages software url references in database
-        * manages software admininistrator account integrity
+        * php version
+        * git ignore file entries
+        * directory and file permissions
+        * database configuration file
+        * software file stores
+        * operations such as cron, garbage collection, and cache rebuilds
+        * performance configuration
+        * database migrations
+        * database backups and restores
+        * url references in database
+        * admininistrator account integrity
     * option: `software: codeigniter2`
     * option: `software: codeigniter3`
     * option: `software: concrete58`
