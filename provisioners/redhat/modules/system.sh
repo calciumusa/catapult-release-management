@@ -11,56 +11,63 @@ sudo systemctl start sshd.service
 # reduce this number "There were 34877 failed login attempts since the last successful login."
 echo -e "$(lastb | head -n -2 | wc -l) failed login attempts"
 echo -e "$(last | head -n -2 | wc -l) successful login attempts"
-sudo last
+sudo last -F -n 20
 # only allow authentication via ssh key pair
 sed -i -e "/PasswordAuthentication/d" /etc/ssh/sshd_config
 if ! grep -q "PasswordAuthentication no" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nPasswordAuthentication no" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "PasswordAuthentication no" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/PubkeyAuthentication/d" /etc/ssh/sshd_config
 if ! grep -q "PubkeyAuthentication yes" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nPubkeyAuthentication yes" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "PubkeyAuthentication yes" >> /etc/ssh/sshd_config'
 fi
 # https://cisofy.com/controls/SSH-7408/ - harden ssh configuration
 sed -i -e "/ClientAliveCountMax/d" /etc/ssh/sshd_config
 if ! grep -q "ClientAliveCountMax 2" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nClientAliveCountMax 2" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "ClientAliveCountMax 2" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/MaxSessions/d" /etc/ssh/sshd_config
 if ! grep -q "MaxSessions 2" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nMaxSessions 2" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "MaxSessions 2" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/X11Forwarding/d" /etc/ssh/sshd_config
 if ! grep -q "X11Forwarding no" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nX11Forwarding no" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "X11Forwarding no" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/MaxAuthTries/d" /etc/ssh/sshd_config
 if ! grep -q "MaxAuthTries 2" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nMaxAuthTries 2" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "MaxAuthTries 2" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/LogLevel/d" /etc/ssh/sshd_config
 if ! grep -q "LogLevel VERBOSE" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nLogLevel VERBOSE" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "LogLevel VERBOSE" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/ClientAliveInterval/d" /etc/ssh/sshd_config
 if ! grep -q "ClientAliveInterval 120" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nClientAliveInterval 120" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "ClientAliveInterval 120" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/ClientAliveCountMax/d" /etc/ssh/sshd_config
 if ! grep -q "ClientAliveCountMax 2" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nClientAliveCountMax 2" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "ClientAliveCountMax 2" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/TCPKeepAlive/d" /etc/ssh/sshd_config
 if ! grep -q "TCPKeepAlive no" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nTCPKeepAlive no" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "TCPKeepAlive no" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/AllowAgentForwarding/d" /etc/ssh/sshd_config
 if ! grep -q "AllowAgentForwarding no" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nAllowAgentForwarding no" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "AllowAgentForwarding no" >> /etc/ssh/sshd_config'
 fi
+# allow tcp forwarding for mysql to allow for ssh tunnel to connect to loopback for mysql connections
 sed -i -e "/AllowTcpForwarding/d" /etc/ssh/sshd_config
-if ! grep -q "AllowTcpForwarding no" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nAllowTcpForwarding no" >> /etc/ssh/sshd_config'
+if ([ "${4}" == "mysql" ]); then
+    if ! grep -q "AllowTcpForwarding yes" "/etc/ssh/sshd_config"; then
+       sudo bash -c 'echo -e "AllowTcpForwarding yes" >> /etc/ssh/sshd_config'
+    fi
+else
+    if ! grep -q "AllowTcpForwarding no" "/etc/ssh/sshd_config"; then
+       sudo bash -c 'echo -e "AllowTcpForwarding no" >> /etc/ssh/sshd_config'
+    fi
 fi
 # https://wiki.centos.org/TipsAndTricks/BannerFiles
 banner="
@@ -84,7 +91,7 @@ ${banner}
 EOF
 sed -i -e "/Banner/d" /etc/ssh/sshd_config
 if ! grep -q "Banner /etc/issue.net" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo -e "\nBanner /etc/issue.net" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "Banner /etc/issue.net" >> /etc/ssh/sshd_config'
 fi
 # harden file permissions
 sudo chmod 0700 /root/.ssh
@@ -107,10 +114,17 @@ else
     "$(echo "${configuration}" | shyaml get-value company.email)"
 EOF
 fi
+# configure postfix
+sudo postconf -e "smtpd_tls_security_level = may"
+sudo postconf -e "smtpd_tls_loglevel = 1"
+sudo postconf -e "smtp_tls_security_level = may"
+sudo postconf -e "smtp_tls_loglevel = 1"
 # https://cisofy.com/controls/MAIL-8818/ - hide the mail_name (option: smtpd_banner) from your postfix configuration
 sed --in-place --expression="s/^#smtpd_banner\s=\s\$myhostname\sESMTP\s\$mail_name$/smtpd_banner = \$myhostname ESMTP/g" "/etc/postfix/main.cf"
-# reload postfix after configuration changes
-sudo systemctl reload postfix.service
+# install postfix-perl-scripts for postfix reporting. e.g. perl /usr/sbin/pflogsumm -d today /var/log/maillog
+sudo yum install -y postfix-perl-scripts
+# restart postfix after configuration changes
+sudo systemctl restart postfix.service
 
 
 
@@ -120,6 +134,8 @@ hostnamectl set-hostname "" --pretty
 # configure the hostname
 if ([ "${4}" == "apache" ]); then
     hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat"
+elif ([ "${4}" == "apache-node" ]); then
+    hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat1"
 elif ([ "${4}" == "bamboo" ]); then
     hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-build"
 elif ([ "${4}" == "mysql" ]); then
@@ -202,7 +218,7 @@ echo -e "\n> system swap configuration"
 swaps=$(swapon --noheadings --show=NAME)
 swap_volumes=$(cat /etc/fstab | grep "swap" | awk '{print $1}')
 
-if ([ "${4}" == "apache" ] || [ "${4}" == "mysql" ]); then
+if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ] || [ "${4}" == "mysql" ]); then
 
     # create a 256MB swap at /swapfile if it does not exist
     if [[ ! ${swaps[*]} =~ "/swapfile" ]]; then
@@ -250,7 +266,7 @@ if ([ "${4}" == "bamboo" ]); then
 fi
 
 # define the swaps
-if ([ "${4}" == "apache" ] || [ "${4}" == "mysql" ]); then
+if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ] || [ "${4}" == "mysql" ]); then
     defined_swaps=("/swapfile" "/swapfile512")
 elif ([ "${4}" == "bamboo" ]); then
     defined_swaps=("/swapfile" "/swapfile512" "/swapfile768")
@@ -291,9 +307,13 @@ EOF
 
 
 echo -e "\n> system monitoring configuration"
-# new relic servers is no longer available, so until we find an agnostic monir, let's rely on the provider
+# new relic servers is no longer available, so until we find an agnostic monitor, let's rely on the provider
 if ([ "$1" != "dev" ]); then
-    curl --silent --show-error --connect-timeout 5 --max-time 5 --location https://agent.digitalocean.com/install.sh | sh
+    version=$(/opt/digitalocean/bin/do-agent --version 2>/dev/null | grep "^Version:" | grep --only-matching --regexp="[0-9]\.[0-9]\.[0-9]" | grep --only-matching --regexp="^[0-9]" || echo "0")
+    if [[ "${version}" != "3" ]]; then
+        sudo yum remove -y do-agent
+        curl --silent --show-error --connect-timeout 5 --max-time 5 --location https://insights.nyc3.cdn.digitaloceanspaces.com/install.sh | sudo bash
+    fi
 fi
 
 
