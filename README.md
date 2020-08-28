@@ -80,101 +80,14 @@ Catapult orchestrates the following key components of DevOps to provide you with
 
 
 
-## Supported Website Software ##
-
-Catapult intelligently manages the following website software that have been chosen from trending usage statistics from [BuiltWith](https://trends.builtwith.com/cms) and aligns with the [CentOS 7](http://mirror.centos.org/centos/7/os/x86_64/Packages/) and [Software Collections](https://www.softwarecollections.org/) trunks:
-
-Software | [Key](#websites) | Required PHP Version | Running PHP Version | Released | End-of-Life
----------|------------------|---------------------|---------------------|----------|------------
-CodeIgniter 2                     | `codeigniter2`         | 5.1.6  | 5.4 | January 28, 2011   | [October 31, 2015](http://forum.codeigniter.com/thread-61357.html)
-CodeIgniter 3                     | `codeigniter3`         | 5.6    | 7.1 | March 30, 2015     |
-concrete5 8                       | `concrete58`           | 5.5.9  | 7.1 | December 1, 2016   |
-Drupal 6                          | `drupal6`              | 5.4    | 5.4 | February 13, 2008  | [February 24, 2016](https://www.drupal.org/drupal-6-eol)
-Drupal 7                          | `drupal7`              | 5.2.5  | 7.1 | January 5, 2011    |
-Drupal 8                          | `drupal8`              | 7.0.8  | 7.2 | November 19, 2015  |
-Elgg 1                            | `elgg1`                | 5.4    | 5.4 | August 20, 2008    |
-Elgg 2                            | `elgg2`                | 5.6    | 7.1 | December 14, 2015  |
-ExpressionEngine 3                | `expressionengine3`    | 5.3.10 | 5.4 | October 13, 2015   | [December 14, 2018](https://expressionengine.com/blog/version-3-end-of-life)
-Joomla 3                          | `joomla3`              | 5.3.10 | 7.1 | September 27, 2012 |
-Laravel 5                         | `laravel5`             | 7.0.0  | 7.1 | February 4, 2015   |
-MediaWiki 1                       | `mediawiki1`           | 5.5.9  | 7.1 | December 8, 2003   |
-Moodle 3                          | `moodle3`              | 5.6.5  | 7.1 | November 16, 2015  |
-SilverStripe 3                    | `silverstripe3`        | 5.3.3  | 5.4 | June 29, 2012      |
-SuiteCRM 7                        | `suitecrm7`            | 5.5    | 7.1 | October 21, 2013   | [November 15, 2019](http://support.sugarcrm.com/Resources/Supported_Versions/)
-WordPress 4                       | `wordpress4`           | 5.2.4  | 7.1 | September 4, 2014  |
-WordPress 5                       | `wordpress5`           | 5.2.4  | 7.2 | December 6, 2018   |
-XenForo 1                         | `xenforo1`             | 5.2.11 | 5.4 | March 8, 2011      | [December 31, 2019](https://xenforo.com/community/threads/xenforo-1-5-end-of-life-schedule.157679/)
-XenForo 2                         | `xenforo2`             | 5.4.0  | 7.1 | November 28, 2017  |
-Zend Framework 2                  | `zendframework2`       | 5.3.23 | 5.4 | September 5, 2012  |
-
-If you do not see your website software listed, Catapult supports basic PHP projects that do not have a database requirement.
-
-* When an above software type is not defined, the default PHP version that is used is PHP 5.4. This is not configurable.
-* PHP-less static site generators, such as, [Jekyll](https://jekyllrb.com/), are supported.
-
-### PHP Versions ###
-
-Catapult maintains a high level of integrity when it comes to PHP versions, through maintaining security, backwards compatibility, performance, and new features. Below is an overview of the PHP versions used in Catapult and when you can expect these versions to be End-of-Life (EOL). We will bump to the next highest version of PHP in the list when nearing the EOL - this provides ample time for support of the newer PHP version by the software. In cases where a software version is sunsetting, the CentOS Long-term Support (LTS) version of PHP is used.
-
-PHP Version | End-of-Life | Maintainer | Updater
-------------|-------------|------------|--------
-5.4 | June 30, 2024 | [CentOS](https://wiki.centos.org/FAQ/General#head-fe8a0be91ee3e7dea812e8694491e1dde5b75e6d) | [Red Hat](https://access.redhat.com/security/updates/backporting)
-7.1 | December 1, 2019 | [SCLO](https://www.softwarecollections.org/en/scls/rhscl/rh-php71/) | [Red Hat](https://developers.redhat.com/products/softwarecollections/overview/)
-7.2 | November 30, 2020 | [SCLO](https://www.softwarecollections.org/en/scls/rhscl/rh-php72/) | [Red Hat](https://developers.redhat.com/products/softwarecollections/overview/)
-
-### End-of-Life (EOL) ###
-
-Catapult tracks vendor announced EOL dates for website software and a red EOL date will be displayed during `vagrant status` if one of your website's software is EOL. Currently Catapult has no plan to block Catapult supported software that is past its EOL date - it is up to you to move to the next major supported version.
-
-## Competition ##
-
-The free market and competition is great - it pushes the envelope of innovation. Here, we compare similar platforms to shed light on where we are and we're headed. Catapult's approach is holistic, meaning, there are no optional features - the platform includes everything in its default state and its default state is the only state of the platform. Some platforms offer and support optional third-party features that need configured - these are excluded.
-
-Platform Feature | Catapult | Pantheon | Acquia
------------------|----------|----------|--------
-Source                                        | Open                                  | Closed                        | Closed
-Subscription Feature Set                      | Bundled                               | Separated                     | Separated
-Traditional Tooling (VMs & Shell)             | :white_check_mark:                    | :x:                           | :x:
-Multi-Platform (Linux & Windows)              | :white_check_mark:                    | :x:                           | :x:
-Supported PHP Software                        | 20+                                   | 2                             | 1
-Supported .NET Software                       | TBA                                   | :x:                           | :x:
-Minimum Bundled<br>Monthly Cost               | $45                                   | $400                          | $134
-Websites per instance                         | Unlimited                             | 1                             | 1
-Managed Workflow                              | Git Flow (branch-based environments)  | :x:                           | :x:
-Managed Software Workflow Model               | Upstream or Downstream                | :x:                           | :x:
-Agile Methodology Focus                       | Scrum                                 | :x:                           | :x:
-Managed Continuous Integration                | :white_check_mark:                    | :x:                           | :x:
-Environments                                  | LocalDev, Test, QC, Production        | Multidev, Dev, Test, Live     | Dev Desktop, Dev, Stage, Prod
-Exacting Configuration                        | :white_check_mark:                    | :x:<sup>[2](#references)</sup>| :x:<sup>[3](#references)</sup>
-Approach                                      | Virtual Machine                       | Container                     | Virtual Machine
-Data Center                                   | DigitalOcean and AWS                  | Rackspace                     | AWS
-Scaling                                       | Horizontal                            | Horizontal                    | Vertical
-Scaling Management                            | Manual                                | Automatic                     | Manual
-Development Environment                       | Unlimited Local                       | 5 Cloud                       | Unlimited Local
-Development Environment Approach              | Exact                                 | Exact                         | Similar
-Dashboard - Control                           | CLI                                   | CLI & Web                     | CLI & Web
-Dashboard - Monitor                           | Web                                   | Web                           | Web
-Managed Public Git Website Repository Support | GitHub & Bitbucket                    | :x:                           | :x:
-Managed DNS                                   | CloudFlare                            | :x:                           | :x:
-Managed Free HTTPS Certificates               | CloudFlare/Let's Encrypt              | :x:                           | :x:
-Managed Server Monitoring                     | New Relic                             | :x:                           | Proprietary
-Managed Application Error Logs                | New Relic                             | Proprietary                   | Proprietary
-Managed Application Performance Monitoring    | New Relic                             | :x:                           | :x:
-Managed Browser Performance Monitoring        | New Relic                             | :x:                           | :x:
-Managed Synthetic Monitoring                  | New Relic                             | :x:                           | :x:
-
-See an error or have a suggestion? Email competition@devopsgroup.io - we appreciate all feedback.
-
-
-
 ## Table of Contents ##
 
 - [Catapult](#catapult)
-    - [Platform Overview](#platform-overview)
     - [Security Disclosure](#security-disclosure)
-    - [Supported Website Software](#supported-website-software)
-    - [Competition](#competition)
+    - [Platform Overview](#platform-overview)
     - [Table of Contents](#table-of-contents)
+    - [Supported Website Software](#supported-website-software)
+    - [Platform Comparison](#platform-comparison)
 - [Setup Catapult](#setup-catapult)
     - [Developer Setup](#developer-setup)
     - [Instance Setup](#instance-setup)
@@ -238,6 +151,93 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
 
 
 
+## Supported Website Software ##
+
+Catapult intelligently manages the following website software that have been chosen from trending usage statistics from [BuiltWith](https://trends.builtwith.com/cms) and aligns with the [CentOS 7](http://mirror.centos.org/centos/7/os/x86_64/Packages/) and [Software Collections](https://www.softwarecollections.org/) trunks:
+
+Software | [Key](#websites) | Required PHP Version | Running PHP Version | Released | End-of-Life
+---------|------------------|---------------------|---------------------|----------|------------
+CodeIgniter 2                     | `codeigniter2`         | 5.1.6  | 5.4 | January 28, 2011   | [October 31, 2015](http://forum.codeigniter.com/thread-61357.html)
+CodeIgniter 3                     | `codeigniter3`         | 5.6    | 7.1 | March 30, 2015     |
+concrete5 8                       | `concrete58`           | 5.5.9  | 7.1 | December 1, 2016   |
+Drupal 6                          | `drupal6`              | 5.4    | 5.4 | February 13, 2008  | [February 24, 2016](https://www.drupal.org/drupal-6-eol)
+Drupal 7                          | `drupal7`              | 5.2.5  | 7.1 | January 5, 2011    |
+Drupal 8                          | `drupal8`              | 7.0.8  | 7.2 | November 19, 2015  |
+Elgg 1                            | `elgg1`                | 5.4    | 5.4 | August 20, 2008    |
+Elgg 2                            | `elgg2`                | 5.6    | 7.1 | December 14, 2015  |
+ExpressionEngine 3                | `expressionengine3`    | 5.3.10 | 5.4 | October 13, 2015   | [December 14, 2018](https://expressionengine.com/blog/version-3-end-of-life)
+Joomla 3                          | `joomla3`              | 5.3.10 | 7.1 | September 27, 2012 |
+Laravel 5                         | `laravel5`             | 7.0.0  | 7.1 | February 4, 2015   |
+MediaWiki 1                       | `mediawiki1`           | 5.5.9  | 7.1 | December 8, 2003   |
+Moodle 3                          | `moodle3`              | 5.6.5  | 7.1 | November 16, 2015  |
+SilverStripe 3                    | `silverstripe3`        | 5.3.3  | 5.4 | June 29, 2012      |
+SuiteCRM 7                        | `suitecrm7`            | 5.5    | 7.1 | October 21, 2013   | [November 15, 2019](http://support.sugarcrm.com/Resources/Supported_Versions/)
+WordPress 4                       | `wordpress4`           | 5.2.4  | 7.1 | September 4, 2014  |
+WordPress 5                       | `wordpress5`           | 5.2.4  | 7.2 | December 6, 2018   |
+XenForo 1                         | `xenforo1`             | 5.2.11 | 5.4 | March 8, 2011      | [December 31, 2019](https://xenforo.com/community/threads/xenforo-1-5-end-of-life-schedule.157679/)
+XenForo 2                         | `xenforo2`             | 5.4.0  | 7.1 | November 28, 2017  |
+Zend Framework 2                  | `zendframework2`       | 5.3.23 | 5.4 | September 5, 2012  |
+
+If you do not see your website software listed, Catapult supports basic PHP projects that do not have a database requirement.
+
+* When an above software type is not defined, the default PHP version that is used is PHP 5.4. This is not configurable.
+* PHP-less static site generators, such as, [Jekyll](https://jekyllrb.com/), are supported.
+
+### PHP Versions ###
+
+Catapult maintains a high level of integrity when it comes to PHP versions, through maintaining security, backwards compatibility, performance, and new features. Below is an overview of the PHP versions used in Catapult and when you can expect these versions to be End-of-Life (EOL). We will bump to the next highest version of PHP in the list when nearing the EOL - this provides ample time for support of the newer PHP version by the software. In cases where a software version is sunsetting, the CentOS Long-term Support (LTS) version of PHP is used.
+
+PHP Version | End-of-Life | Maintainer | Updater
+------------|-------------|------------|--------
+5.4 | June 30, 2024 | [CentOS](https://wiki.centos.org/FAQ/General#head-fe8a0be91ee3e7dea812e8694491e1dde5b75e6d) | [Red Hat](https://access.redhat.com/security/updates/backporting)
+7.1 | December 1, 2019 | [SCLO](https://www.softwarecollections.org/en/scls/rhscl/rh-php71/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
+7.2 | November 30, 2020 | [SCLO](https://www.softwarecollections.org/en/scls/rhscl/rh-php72/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
+
+### End-of-Life (EOL) ###
+
+Catapult tracks vendor announced EOL dates for website software and a red EOL date will be displayed during `vagrant status` if one of your website's software is EOL. Currently Catapult has no plan to block Catapult supported software that is past its EOL date - it is up to you to move to the next major supported version.
+
+## Platform Comparision ##
+
+Here, we compare similar platforms to shed light on where we are and we're headed. Catapult's approach is holistic, meaning, there are no optional features - the platform includes everything in its default state and its default state is the only state of the platform. Some platforms offer and support optional third-party features that need configured - these are excluded.
+
+Platform Feature | Catapult | Pantheon | Acquia
+-----------------|----------|----------|--------
+Source                                        | Open                                  | Closed                        | Closed
+Subscription Feature Set                      | Bundled                               | Separated                     | Separated
+Traditional Tooling (VMs & Shell)             | :white_check_mark:                    | :x:                           | :x:
+Multi-Platform (Linux & Windows)              | :white_check_mark:                    | :x:                           | :x:
+Supported PHP Software                        | 20+                                   | 2                             | 1
+Supported .NET Software                       | TBA                                   | :x:                           | :x:
+Minimum Bundled<br>Monthly Cost               | $45                                   | $400                          | $134
+Websites per instance                         | Unlimited                             | 1                             | 1
+Managed Workflow                              | Git Flow (branch-based environments)  | :x:                           | :x:
+Managed Software Workflow Model               | Upstream or Downstream                | :x:                           | :x:
+Agile Methodology Focus                       | Scrum                                 | :x:                           | :x:
+Managed Continuous Integration                | :white_check_mark:                    | :x:                           | :x:
+Environments                                  | LocalDev, Test, QC, Production        | Multidev, Dev, Test, Live     | Dev Desktop, Dev, Stage, Prod
+Exacting Configuration                        | :white_check_mark:                    | :x:<sup>[2](#references)</sup>| :x:<sup>[3](#references)</sup>
+Approach                                      | Virtual Machine                       | Container                     | Virtual Machine
+Data Center                                   | DigitalOcean and AWS                  | Rackspace                     | AWS
+Scaling                                       | Horizontal                            | Horizontal                    | Vertical
+Scaling Management                            | Manual                                | Automatic                     | Manual
+Development Environment                       | Unlimited Local                       | 5 Cloud                       | Unlimited Local
+Development Environment Approach              | Exact                                 | Exact                         | Similar
+Dashboard - Control                           | CLI                                   | CLI & Web                     | CLI & Web
+Dashboard - Monitor                           | Web                                   | Web                           | Web
+Managed Public Git Website Repository Support | GitHub & Bitbucket                    | :x:                           | :x:
+Managed DNS                                   | CloudFlare                            | :x:                           | :x:
+Managed Free HTTPS Certificates               | CloudFlare/Let's Encrypt              | :x:                           | :x:
+Managed Server Monitoring                     | New Relic                             | :x:                           | Proprietary
+Managed Application Error Logs                | New Relic                             | Proprietary                   | Proprietary
+Managed Application Performance Monitoring    | New Relic                             | :x:                           | :x:
+Managed Browser Performance Monitoring        | New Relic                             | :x:                           | :x:
+Managed Synthetic Monitoring                  | New Relic                             | :x:                           | :x:
+
+See an error or have a suggestion? Email competition@devopsgroup.io - we appreciate all feedback.
+
+
+
 # Setup Catapult #
 
 Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#instance-setup), and [Services Setup](#services-setup) as described in the following sections.
@@ -246,7 +246,7 @@ Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#insta
 * You must run most commands from an elevated shell. For macOS and Linux, type `sudo su` in a terminal window, or for Windows, right-clicking on Command Prompt from the Start Menu and selecting "Run as Administrator".
 * It is advised to turn off any antivirus software that you may have installed during setup and usage of Catapult - tasks such as forwarding ports and writing hosts files may be blocked.
 * Virtualizaion must be enabled in the BIOS of the developer's workstation - follow [this how-to](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Virtualization/sect-Virtualization-Troubleshooting-Enabling_Intel_VT_and_AMD_V_virtualization_hardware_extensions_in_BIOS.html) to get started.
-* Using a VPN client during usage of LocalDev may result in lost communication between your workstation and the guests, requiring a `vagrant reload` to regain SSH and/or WinRM communication.
+* Using a VPN client during usage of LocalDev may result in lost communication between your workstation and the guests, requiring a `vagrant reload` to regain communication.
 
 ## Developer Setup ##
 
@@ -256,30 +256,34 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
 * Linux workstations: Compatible and supported
 * Windows workstations: Limited testing and support
 
-1. **Vagrant**
+1. **Terminal**
     * **Using macOS?**
-        1. Ensure Xcode Command Line Tools are installed by running `xcode-select --install` from Terminal
-        2. Download and install the latest version of Vagrant v2.x from https://releases.hashicorp.com/vagrant/
+        1. The terminal in the base distrubitions are 100% compatible.
     * **Using Windows?**
-        1. Download and install the latest version of Vagrant v2.x from https://releases.hashicorp.com/vagrant/
-    * **Using Linux (Debian, Ubuntu)?**
-        1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.2/vagrant_2.2.2_x86_64.deb`
-        2. Install Vagrant using dpkg e.g. `sudo dpkg --install vagrant_2.2.2_x86_64.deb`
-        3. Install Network File System (NFS) `sudo apt-get install nfs-kernel-server`
-    * **Using Linux (Fedora, Red Hat, Suse)?**
-        1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.2/vagrant_2.2.2_x86_64.rpm`
-        2. Install Vagrant using yum e.g. `sudo yum install vagrant_2.2.2_x86_64.rpm`
-2. **Vagrant Plugins**
-    1. Open your command line and install the following Vagrant plugins:
-        1. `vagrant plugin install vagrant-aws`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-aws.svg)](https://rubygems.org/gems/vagrant-aws)
-        2. `vagrant plugin install vagrant-digitalocean`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-digitalocean.svg)](https://rubygems.org/gems/vagrant-digitalocean) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-digitalocean)
-        3. `vagrant plugin install vagrant-hostmanager`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-hostmanager)
-        4. `vagrant plugin install vagrant-vbguest`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
-3. **VirtualBox**
+        1. Run all Vagrant commands from Command Prompt as Administrator by right-clicking and selecting "Open as Administrator"
+    * **Using Linux?**
+        1. The terminal in the base distrubitions are 100% compatible.
+2. **GPG2**
+    * **Using macOS?**
+        1. Download and install GPG Suite from https://gpgtools.org
+    * **Using Windows?**
+        1. Download and install Gpg4win from http://gpg4win.org/download.html
+    * **Using Linux?**
+        1. GPG is included in the base distribution in most cases.
+        1. If being prompted by the Passphrase GUI Agent, comment out 'use-agent' in `~/.gnupg/gpg.conf`
+3. **Git**
+    * **Using macOS?**
+        1. Git command line is included in the base distribution in most cases.
+        1. For a streamlined Git GUI, download and install SourceTree from https://www.sourcetreeapp.com/
+    * **Using Windows?**
+        1. Download and install Git from https://git-scm.com/download/win
+        1. Download and install SourceTree from https://www.sourcetreeapp.com/
+    * **Using Linux?**
+        1. Git commandline is included in the base distribution in most cases.
+        1. For a streamlined Git GUI, download and install SmartGit from http://www.syntevo.com/smartgit/
+4. **Git Credential Caching**
+    1. Follow the instructions outlined for your system to store your Git credentials https://docs.github.com/en/github/using-git/caching-your-github-credentials-in-git
+5. **VirtualBox**
     * **Using macOS?**
         1. Download and install the latest version of VirtualBox from https://www.virtualbox.org/wiki/Downloads
     * **Using Windows?**
@@ -288,40 +292,21 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
         1. Download and install the latest version of VirtualBox using Advanced Packaging Tool (APT) `sudo apt-get install virtualbox`
     * **Using Linux (Fedora, Red Hat, Suse)?**
         1. Download and install the latest version of VirtualBox using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
-4. **GPG2**
+6. **Vagrant**
     * **Using macOS?**
-        1. Download and install GPG Suite from https://gpgtools.org
+        1. Ensure Xcode Command Line Tools are installed by running `xcode-select --install` from Terminal
+        2. Download and install the latest version of Vagrant v2.x from https://releases.hashicorp.com/vagrant/
     * **Using Windows?**
-        1. Download and install Gpg4win from http://gpg4win.org/download.html
-    * **Using Linux?**
-        1. GPG is included in the base distribution in most cases.
-        1. If being prompted by the Passphrase GUI Agent, comment out 'use-agent' in `~/.gnupg/gpg.conf`
-5. **Git**
-    * **Using macOS?**
-        1. Git commandline is included in the base distribution in most cases.
-        1. For a streamlined Git GUI, download and install SourceTree from https://www.sourcetreeapp.com/
-    * **Using Windows?**
-        1. Download and install SourceTree from https://www.sourcetreeapp.com/
-    * **Using Linux?**
-        1. Git commandline is included in the base distribution in most cases.
-        1. For a streamlined Git GUI, download and install SmartGit from http://www.syntevo.com/smartgit/
-6. **Terminal**
-    * **Using macOS?**
-        1. The terminal in the base distrubitions are 100% compatible.
-    * **Using Windows?**
-        1. Download and install Cygwin from https://cygwin.com/install.html
-            * Make sure to install the openssh package
-        1. Run all Vagrant commands from within the Cygwin terminal.
-            * Make sure to open Cygwin terminal as Administrator by right-clicking and selecting "Open as Administrator"
-    * **Using Linux?**
-        1. The terminal in the base distrubitions are 100% compatible.
-
-
-Having your team use the same tools is beneficial to streamlining your workflow - below is a list of recommended software tools.
-
-1. **Sublime Text 3**
-    1. Please download and install from http://www.sublimetext.com/3
-
+        1. Download and install the latest version of Vagrant v2.x from https://releases.hashicorp.com/vagrant/
+    * **Using Linux (Debian, Ubuntu)?**
+        1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.9/vagrant_2.2.9_x86_64.deb`
+        2. Install Vagrant using dpkg e.g. `sudo dpkg --install vagrant_2.2.9_x86_64.deb`
+        3. Install Network File System (NFS) `sudo apt-get install nfs-kernel-server`
+    * **Using Linux (Fedora, Red Hat, Suse)?**
+        1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.9/vagrant_2.2.9_x86_64.rpm`
+        2. Install Vagrant using yum e.g. `sudo yum install vagrant_2.2.9_x86_64.rpm`
+7. **Java SE Development Kit**
+    1. Follow the instructions outlined for your system http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
 
 ## Instance Setup ##
 
@@ -336,16 +321,17 @@ Catapult is quick to setup. You have the option of using GitHub (public) or Bitb
     1. Create a *passwordless* SSH key pair - this will drive authentication for Catapult.
         1. For instructions please see https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/
         2. Place the newly created *passwordless* SSH key pair `id_rsa` and `id_rsa.pub` in the `~/secrets/` folder.
-3. **GPG Key**
-    1. Generate a GPG key - this will drive encryption for Catapult.
-        1. NEVER SHARE THE KEY WITH ANYONE OTHER THAN YOUR TEAM.
+3. **GPG Passphrase**
+    1. Generate a GPG passphrase 
+        1. This passphrase is used to encrypt and descrypt your Catapult instance's configuration file.
+        2. NEVER SHARE THE PASSPHRASE WITH ANYONE OTHER THAN YOUR TEAM.
         3. Spaces are not permitted and must be at least 20 characters.
-        4. To create a strong key, please visit https://xkpasswd.net/
-        5. Place your newly generated GPG key at `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
-        6. It is recommended to print a QR code of the key to distribute to your team, please visit http://educastellano.github.io/qr-code/demo/
-        7. Remember! Security is 99% process and 1% technology.
+        4. To create a strong passphrase, please visit https://xkpasswd.net/
+        5. Place your newly generated passphrase at `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
+        6. It is recommended to print a QR code of the passphrase to distribute to your team, please visit http://educastellano.github.io/qr-code/demo/
+        7. Remember! Effective security is equal parts process and technology.
 4. **GPG Edit Mode**
-    1. **GPG Edit Mode** is set at `~/secrets/configuration-user.yml["settings"]["gpg_edit"]` (`false` by default) and is used to encrypt your Catapult configuration secrets using your **GPG Key**:
+    1. **GPG Edit Mode** is set at `~/secrets/configuration-user.yml["settings"]["gpg_edit"]` (`false` by default) and is used to encrypt your Catapult configuration secrets using your **GPG Passphrase**:
         1. `~/secrets/id_rsa` as `~/secrets/id_rsa.gpg`
         2. `~/secrets/id_rsa.pub` as `~/secrets/id_rsa.pub.gpg`
         3. `~/secrets/configuration.yml` as `~/secrets/configuration.yml.gpg`
@@ -1687,8 +1673,8 @@ Catapult will also be seen throughout local meetups in the Philadelphia and Grea
 
 * [Technical.ly Philly](http://www.meetup.com/Technically-Philly/) 12k+ technologists
 * [Tech in Motion Philly](http://www.meetup.com/TechinMotionPhilly/) 7k+ technologists
-* [Philadelphia WordPress Meetup Group](http://www.meetup.com/philadelphia-wordpress-meetup-group/) 2k+ technologists
-* [Philly DevOps](http://www.meetup.com/PhillyDevOps/) 2k+ technologists
+* [Philadelphia WordPress Meetup Group](http://www.meetup.com/philadelphia-wordpress-meetup-group/) 2.5k+ technologists
+* [Philly DevOps](http://www.meetup.com/PhillyDevOps/) 3k+ technologists
     * [\[09-20-2016\]  From Pets to Serverless: Deployment Panel](https://www.meetup.com/PhillyDevOps/events/232930398/)
 * [Greater Philadelphia Drupal Meetup Group](http://www.meetup.com/drupaldelphia/) .75k+ technologists
 
