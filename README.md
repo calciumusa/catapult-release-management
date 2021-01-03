@@ -1,7 +1,7 @@
 # Catapult #
 <img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/repositories/apache/_default_/svg/catapult.svg" alt="Catapult" width="200">
 
-Catapult defines a best-practice infrastructure so you don't have to - it also aligns with Agile methodologies, like Scrum, to afford you everything you need to develop, deploy, and maintain a website with ease.
+Catapult defines a best-practice infrastructure and release management workflow, saving you thousands of engineering hours - it also aligns with Agile methodologies, like Scrum, to afford you everything you need to develop, deploy, and maintain a website with ease.
 
 <img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/catapult/installers/images/catapult_infrastructure.png" alt="Catapult Infrastructure">
 
@@ -141,6 +141,8 @@ Catapult orchestrates the following key components of DevOps to provide you with
     - [Geographic Optimizations](#geographic-optimizations)
     - [Recommended Optimizations](#recommended-optimizations)
 - [Capacity](#capacity)
+    - [Increasing Capacity](#increasing-capacity)
+    - [Load Balancer](#load-balancer)
 - [Performance and Capacity Testing](#performance-and-capacity-testing)
     - [Website Concurrency Maximum](#website-concurrency-maximum)
     - [Interpreting Apache AB Results](#interpreting-apache-ab-results)
@@ -243,14 +245,14 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
 Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#instance-setup), and [Services Setup](#services-setup) as described in the following sections.
 
 **Please Note:**
-* You must run most commands from an elevated shell. For macOS and Linux, type `sudo su` in a terminal window, or for Windows, right-clicking on Command Prompt from the Start Menu and selecting "Run as Administrator".
 * It is advised to turn off any antivirus software that you may have installed during setup and usage of Catapult - tasks such as forwarding ports and writing hosts files may be blocked.
 * Virtualizaion must be enabled in the BIOS of the developer's workstation - follow [this how-to](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Virtualization/sect-Virtualization-Troubleshooting-Enabling_Intel_VT_and_AMD_V_virtualization_hardware_extensions_in_BIOS.html) to get started.
+* It is recommended to disable Internet Service Provider (ISP) Domain Name System (DNS) helpers, such as opting out of the [Verizon DNS Assitance](https://www.verizon.com/support/residential/internet/home-network/settings/opt-out-of-dns-assist).
 * Using a VPN client during usage of LocalDev may result in lost communication between your workstation and the guests, requiring a `vagrant reload` to regain communication.
 
 ## Developer Setup ##
 
-Catapult is controlled via Vagrant and the command line of a developer's workstation - below is a list of required software that will need to be installed.
+Catapult uses Vagrant and the command line of a developer's workstation, below is a list of required software that will need to be installed.
 
 * macOS workstations: Compatible and supported
 * Linux workstations: Compatible and supported
@@ -281,9 +283,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
     * **Using Linux?**
         1. Git commandline is included in the base distribution in most cases.
         1. For a streamlined Git GUI, download and install SmartGit from http://www.syntevo.com/smartgit/
-4. **Git Credential Caching**
-    1. Follow the instructions outlined for your system to store your Git credentials https://docs.github.com/en/github/using-git/caching-your-github-credentials-in-git
-5. **VirtualBox**
+4. **VirtualBox**
     * **Using macOS?**
         1. Download and install the latest version of VirtualBox from https://www.virtualbox.org/wiki/Downloads
     * **Using Windows?**
@@ -292,7 +292,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
         1. Download and install the latest version of VirtualBox using Advanced Packaging Tool (APT) `sudo apt-get install virtualbox`
     * **Using Linux (Fedora, Red Hat, Suse)?**
         1. Download and install the latest version of VirtualBox using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
-6. **Vagrant**
+5. **Vagrant**
     * **Using macOS?**
         1. Ensure Xcode Command Line Tools are installed by running `xcode-select --install` from Terminal
         2. Download and install the latest version of Vagrant v2.x from https://releases.hashicorp.com/vagrant/
@@ -305,8 +305,19 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
     * **Using Linux (Fedora, Red Hat, Suse)?**
         1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.9/vagrant_2.2.9_x86_64.rpm`
         2. Install Vagrant using yum e.g. `sudo yum install vagrant_2.2.9_x86_64.rpm`
-7. **Java SE Development Kit**
+6. **Java SE Development Kit**
     1. Follow the instructions outlined for your system http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+7. **Verification**
+    1. To verify that everything has been properly installed, please run a `vagrant status`
+8. **Instance Configuration**
+    1. If you are a Catapult admin:
+       1. Set `~/secrets/configuration-user.yml["settings"]["admin"]` to `true`
+       2. Enable Git credential caching by following the instructions outlined for your system to [store your Git credentials](https://docs.github.com/en/github/using-git/caching-your-github-credentials-in-git)
+       3. If you are setting up a new Catapult instance, continue on to the [Instance Setup](#instance-setup) step
+    2. If you are a Catapult user:
+       1. Set `~/secrets/configuration-user.yml["settings"]["admin"]` to `false`
+       2. Contact your Catapult admin for your Catapult instance's `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
+       3. You may stop at this point and contact your Catapult admin for next steps. The [Instance Setup](#instance-setup) and [Services Setup](#services-setup) will be, or have been, completed by your Catapult admin.
 
 ## Instance Setup ##
 
@@ -1523,7 +1534,7 @@ Google's [PageSpeed Insights](https://developers.google.com/speed/pagespeed/insi
 
 # Capacity #
 
-Your website's capacity potential is defined by two key elements; 1) your website's average resource requirement per request and 2) server resources available. We recommend to first [Performance](#performance) optmize your website and *then* consider your website's capacity potential through [Performance and Capacity Testing](#performance-and-capcity-testing).
+Your website's capacity potential is defined by two key elements; 1) your website's average resource requirement per request and 2) server resources available. We recommend to first [Performance](#performance) optmize your website and *then* consider your website's capacity potential through [Performance and Capacity Testing](#performance-and-capacity-testing).
 
 ## Increasing Capacity ##
 
@@ -1533,6 +1544,10 @@ Catapult defines horizontal scaling through adding additional servers, this affo
     * `vagrant up ~/secrets/configuration.yml["company"]["name"]-test-redhat1`
     * `vagrant up ~/secrets/configuration.yml["company"]["name"]-qc-redhat1`
     * `vagrant up ~/secrets/configuration.yml["company"]["name"]-production-redhat1`
+    
+## Load Balancer
+
+HAProxy is used to facilitate capacity management by means of a layer 7 load-balancer. The HAProxy status dashboard is made available to you for each environment by visiting port 32700 at the respective environment's `-redhat` server `ip` address as defined in `~/secrets/configuration.yml`. As example, `42.67.232.56:32700`. The username to login is `admin` and the password is the password as defined at the respective environment's `["software"]["admin_password"]` entry.
 
 
 

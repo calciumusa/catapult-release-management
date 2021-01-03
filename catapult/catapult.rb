@@ -140,6 +140,12 @@ module Catapult
       else
         catapult_exception("Git is not installed at C:\\Program Files (x86)\\Git\\bin\\git.exe or C:\\Program Files\\Git\\bin\\git.exe")
       end
+      # check for vboxmanage
+      if File.exist?('C:\Program Files\Oracle\VirtualBox\VBoxManage.exe')
+        @vboxmanage = "\"C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage.exe\""
+      else
+        catapult_exception("VBoxManage is not installed at C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage.exe")
+      end
       # check for vagrant versions
       if Vagrant::VERSION == "1.8.1"
         catapult_exception("There is an issue with Vagrant v1.8.1 on Windows, please install a lesser or greater version.")
@@ -150,6 +156,13 @@ module Catapult
     elsif (RbConfig::CONFIG['host_os'] =~ /darwin|mac os|linux|solaris|bsd/)
       @environment = :posix
       @git = "git"
+      if File.exist?('/usr/bin/vboxmanage')
+        @vboxmanage = "\"/usr/bin/vboxmanage\""
+      elsif File.exist?('/usr/local/bin/vboxmanage')
+        @vboxmanage = "\"/usr/local/bin/vboxmanage\""        
+      else
+        catapult_exception("VBoxManage is not installed at /usr/bin/vboxmanage")
+      end
       # define required vagrant plugins
       vagrant_plugins(["highline","vagrant-aws","vagrant-digitalocean","vagrant-hostmanager","vagrant-vbguest"]);
     else
@@ -185,10 +198,10 @@ module Catapult
     FileUtils.touch(@lock_file_unique)
 
 
-    # require vm name on up and provision
-    if ["up","provision"].include?(ARGV[0])
+    # require machine name with certain vagrant commands
+    if ["box","destroy","halt","package","provision","rebuild","reload","resume","snapshot","suspend","up"].include?(ARGV[0])
       if ARGV.length == 1
-        catapult_exception("You must use 'vagrant #{ARGV[0]} <name>', run 'vagrant status' to view VM <name>s.")
+        catapult_exception("You must use 'vagrant #{ARGV[0]} <machine-name>'. Run 'vagrant status' to view machine <name>s.")
       end
     end
 
@@ -199,7 +212,7 @@ module Catapult
     puts "\n"
     version = YAML.load_file("VERSION.yml")
     version_git = `#{@git} --version`.strip
-    version_virtualbox = `vboxmanage --version`.strip
+    version_virtualbox = `#{@vboxmanage} --version`.strip
     repo = `#{@git} config --get remote.origin.url`.strip
     branch = `#{@git} rev-parse --abbrev-ref HEAD`.strip
     puts "=> CATAPULT VERSION: #{version["version"]}"
@@ -232,6 +245,9 @@ module Catapult
     # validate @configuration_user_template["settings"]
     if not [true,false].include?(@configuration_user["settings"]["admin"]) || @configuration_user["settings"]["admin"] == nil || @configuration_user["settings"]["admin"].match(/\s/)
       catapult_exception("Please set admin to either true or false in secrets/configuration-user.yml.")
+    end
+    if ((@configuration_user["settings"]["admin"] == false) && (ARGV[1]) && (ARGV[1].include?("-test-") || ARGV[1].include?("-qc-") || ARGV[1].include?("-production-")))
+      catapult_exception("Only admins are authorized to control test, qc, and production machines.")
     end
     if @configuration_user["settings"]["gpg_key"] == nil || @configuration_user["settings"]["gpg_key"].match(/\s/) || @configuration_user["settings"]["gpg_key"].length < 20
       catapult_exception("Please set your team's gpg_key in secrets/configuration-user.yml - spaces are not permitted and must be at least 20 characters. Please visit https://github.com/devopsgroup-io/catapult#instance-setup for more information.")
@@ -1516,7 +1532,7 @@ module Catapult
     end
     # get digitalocean available slugs
     begin
-      uri = URI("https://api.digitalocean.com/v2/sizes")
+      uri = URI("https://api.digitalocean.com/v2/sizes?per_page=200")
       Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
         request = Net::HTTP::Get.new uri.request_uri
         request.add_field "Authorization", "Bearer #{@configuration["company"]["digitalocean_personal_access_token"]}"
@@ -2330,7 +2346,6 @@ module Catapult
                 request = Net::HTTP::Get.new uri.request_uri
                 request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
                 response = http.request(request)
-
                 if response.code.to_f == 404
                   # create the repo if it does not exist
                   confirm = ask("The Bitbucket repository #{repo_split_3[0]} does not exist, would you like to create it? [y/n]") { |yn| yn.limit = 1, yn.validate = /[yn]/i }
@@ -2356,6 +2371,8 @@ module Catapult
                   else
                     catapult_exception("The Bitbucket repo #{instance["repo"]} must exist before continuing")
                   end
+                elsif response.code.to_f == 403
+                  catapult_exception("Your Bitbucket user #{@configuration["company"]["bitbucket_username"]} does not have access to this repository #{instance["repo"]}. Please correct before continuing.")
                 elsif response.code.to_f.between?(399,600)
                   puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
                 end
@@ -2393,6 +2410,8 @@ module Catapult
                   else
                     catapult_exception("The GitHub repo #{instance["repo"]} must exist before continuing")
                   end
+                elsif response.code.to_f == 403
+                  catapult_exception("Your GitHub user #{@configuration["company"]["github_username"]} does not have access to this repository #{instance["repo"]}. Please correct before continuing.")
                 elsif response.code.to_f.between?(399,600)
                   puts "   - The GitHub API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
                 end
@@ -2404,7 +2423,7 @@ module Catapult
             if "#{repo_split_2[0]}" == "bitbucket.org"
               @api_bitbucket_repo_access = false
               if @api_bitbucket_repo_access === false
-                uri = URI("https://api.bitbucket.org/1.0/group-privileges/#{repo_split_3[0]}")
+                uri = URI("https://api.bitbucket.org/2.0/user/permissions/repositories?q=repository.name=\"#{repo_split_4[1]}\"")
                 Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
                   request = Net::HTTP::Get.new uri.request_uri
                   request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
@@ -2414,56 +2433,13 @@ module Catapult
                   elsif response.code.to_f.between?(399,600)
                     puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
                   else
-                    api_bitbucket_repo_group_privileges = JSON.parse(response.body)
-                    api_bitbucket_repo_group_privileges.each do |group|
-                      if group["privilege"] == "admin" || group["privilege"] == "write"
-                        group["group"]["members"].each do |member|
-                          if member["account_id"] == "#{@api_bitbucket_user_account_id}"
-                            @api_bitbucket_repo_access = true
-                          end
-                        end
-                      end
-                    end
-                  end
-                end
-              end
-              if @api_bitbucket_repo_access === false
-                uri = URI("https://api.bitbucket.org/1.0/privileges/#{repo_split_3[0]}")
-                Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                  request = Net::HTTP::Get.new uri.request_uri
-                  request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
-                  response = http.request(request)
-                  if response.code.to_f == 404
-                    catapult_exception("The Bitbucket repo #{instance["repo"]} does not exist")
-                  elsif response.code.to_f.between?(399,600)
-                    puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-                  else
-                    api_bitbucket_repo_privileges = JSON.parse(response.body)
-                    api_bitbucket_repo_privileges.each do |member|
-                      if member["privilege"] == "admin" || member["privilege"] == "write"
-                        if member["user"]["account_id"] == "#{@api_bitbucket_user_account_id}"
+                    api_bitbucket_user_repo_privileges = JSON.parse(response.body)
+                    api_bitbucket_user_repo_privileges["values"].each do |result|
+                      if result["repository"]["full_name"] == "#{repo_split_3[0]}" && result["permission"] == "admin"
                           @api_bitbucket_repo_access = true
-                        end
                       end
-                    end
-                  end
-                end
-              end
-              if @api_bitbucket_repo_access === false
-                uri = URI("https://api.bitbucket.org/2.0/repositories/#{repo_split_3[0]}")
-                Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                  request = Net::HTTP::Get.new uri.request_uri
-                  request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
-                  response = http.request(request)
-                  if response.code.to_f == 404
-                    catapult_exception("The Bitbucket repo #{instance["repo"]} does not exist")
-                  elsif response.code.to_f.between?(399,600)
-                    puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-                  else
-                    api_bitbucket_repo_repositories = JSON.parse(response.body)
-                    if response.code.to_f == 200
-                      if api_bitbucket_repo_repositories["owner"]["account_id"] == "#{@api_bitbucket_user_account_id}"
-                        @api_bitbucket_repo_access = true
+                      if result["repository"]["full_name"] == "#{repo_split_3[0]}" && result["permission"] == "write"
+                          @api_bitbucket_repo_access = true
                       end
                     end
                   end
