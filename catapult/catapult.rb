@@ -207,6 +207,26 @@ module Catapult
     require "securerandom"
     require "yaml"
 
+    # provide a convenient interface for dev environment that executes provision or reload against both dev machines
+    if ARGV[1] == 'dev'
+      @configuration_user = YAML.load_file("secrets/configuration-user.yml")
+      @configuration = YAML.load(`gpg --quiet --batch --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --decrypt secrets/configuration.yml.gpg`)
+      unless configuration.key?('company')
+        catapult_exception("The company name could not be loaded from configuration. To use this convenience command, your Catapult configuration needs to be complete.")
+      end
+      case ARGV[0]
+      when "provision"
+        system("vagrant provision #{@configuration['company']['name'].downcase}-dev-redhat")
+        system("vagrant provision #{@configuration['company']['name'].downcase}-dev-redhat-mysql")
+      when "reload"
+        system("vagrant reload #{@configuration['company']['name'].downcase}-dev-redhat --provision")
+        system("vagrant reload #{@configuration['company']['name'].downcase}-dev-redhat-mysql --provision")
+      when "up"
+        system("vagrant up #{@configuration['company']['name'].downcase}-dev-redhat")
+        system("vagrant up #{@configuration['company']['name'].downcase}-dev-redhat-mysql")
+      end
+      exit 0
+    end
 
     # manage a unique lock file to prevent multiple executions occurring at once to prevent operations such as git from causing havoc
     begin
@@ -360,6 +380,7 @@ module Catapult
         @version_this = YAML.load_file("VERSION.yml")
         @version_this_integer = @version_this["version"].to_i
         @version_upstream = YAML.load(`#{@git} show upstream/master:VERSION.yml`)
+        @version_upstream_parsed = @version_upstream["version"].split(".")
         @version_upstream_integer = @version_upstream["version"].to_i
         if @version_upstream_integer > @version_this_integer
           puts "\n"
@@ -368,7 +389,7 @@ module Catapult
           puts " * This Catapult instance is version #{@version_this["version"]}"
           puts " * Catapult version #{@version_upstream["version"]} is available"
           puts "The upgrade path warning from MAJOR version #{@version_this["version"].to_i} to #{@version_upstream["version"].to_i} is:"
-          puts " * #{@version_upstream["major"][@version_upstream_integer][@version_this_integer]}"
+          puts " * #{@version_upstream["major"][@version_upstream_parsed[0].to_i][@version_upstream_parsed[1].to_i]}"
           puts "Given that you are prepared for the above, please follow these instructions to upgrade manually from within the root of Catapult:"
           puts " * `#{@git} pull --no-edit --strategy-option=theirs upstream master`"
           puts " * `#{@git} push origin develop`"
@@ -389,6 +410,17 @@ module Catapult
         `#{@git} pull origin develop-catapult`
         `#{@git} pull upstream master`
         `#{@git} push origin develop-catapult`
+      end
+    else
+      # non-admin users must have a clean working copy
+      # @TODO are there exceptions, e.g. develop-catapult branch?
+      `#{@git} diff --no-ext-diff --quiet --exit-code`
+      if $?.exitstatus > 0
+        catapult_exception("There are changes present in your working copy that could impact your Catapult instance configuration. "\
+          "Execute these commands for details or contact your Catapult administrator:"\
+          "\n* #{@git} status"\
+          "\n* #{@git} diff"\
+        "")
       end
     end
     # if on the develop branch, pull updates from origin
@@ -945,13 +977,13 @@ module Catapult
         end
       end
       # https://bobswift.atlassian.net/wiki/display/BCLI/Reference
-      # https://bobswift.atlassian.net/wiki/spaces/BCLI/pages/652083565/Reference+-+7.9.0
+      # https://bobswift.atlassian.net/wiki/display/BCLI/Reference
       puts "[Bamboo CLI]"
       if @environment == :posix
-        @api_bamboo_cli = "bash catapult/installers/atlassian-cli-7.0.0/bamboo.sh"
+        @api_bamboo_cli = "bash catapult/installers/atlassian-cli-9.5.0/acli.sh bamboo"
         @api_bamboo_cli_redirect = "2>&1"
       elsif @environment == :windows
-        @api_bamboo_cli = "catapult/installers/atlassian-cli-7.0.0/bamboo.bat"
+        @api_bamboo_cli = "catapult/installers/atlassian-cli-9.5.0/acli.bat bamboo"
         @api_bamboo_cli_redirect = "2>"
       end
       api_bamboo_cli_result = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action validateLicense #{@api_bamboo_cli_redirect}`; result=$?.success?
@@ -961,12 +993,23 @@ module Catapult
         catapult_exception("The Bamboo CLI could not authenticate, please verify [\"company\"][\"bamboo_base_url\"] and [\"company\"][\"bamboo_username\"] and [\"company\"][\"bamboo_password\"]. If the credentials are correct, you may need to login to Bamboo #{@configuration["company"]["bamboo_base_url"]} and provide an answer to a CAPTCHA.")
       elsif api_bamboo_cli_result.strip.include?("has a valid license")
         puts " * Bamboo CLI authenticated successfully."
+          # configure: shared credential
+          api_bamboo_cli_result_cred = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getCredentialsList --regex "Catapult"`; result=$?.success?
+          if api_bamboo_cli_result_cred.strip.include?("0 credentials in list")
+            api_bamboo_cli_result_cred = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addCredentials --credentials="Catapult" --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
+            puts "   - #{api_bamboo_cli_result_cred.strip}"
+          else
+            api_bamboo_cli_result_cred = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateCredentials --credentials="Catapult" --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
+            puts "   - #{api_bamboo_cli_result_cred.strip}"
+          end
+          api_bamboo_cli_result_cred = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getCredentialsList --regex "Catapult"`; result=$?.success?
+          @bamboo_shared_cred_id = api_bamboo_cli_result_cred.match(/^\"(\d+)\"/i).captures[0]
         ["CAT-BUILD", "CAT-TEST", "CAT-QC", "CAT-PROD", "CAT-WINTEST", "CAT-WINQC", "CAT-WINPROD"].each do | plan |
           # define environments
           if plan.include?("BUILD")
             @api_bamboo_cli_environment = "build"
             @api_bamboo_cli_environment_trigger_time = "0 0 23 ? * *"
-            @api_bamboo_cli_environment_trigger_conditions = "--value1 \"CAT-TEST,CAT-QC,CAT-PROD,CAT-WINTEST,CAT-WINQC,CAT-WINPROD\""
+            @api_bamboo_cli_environment_trigger_conditions = "CAT-TEST,CAT-QC,CAT-PROD,CAT-WINTEST,CAT-WINQC,CAT-WINPROD"
           elsif plan.include?("TEST")
             @api_bamboo_cli_environment = "test"
             @api_bamboo_cli_environment_trigger_time = "0 0 0 ? * *"
@@ -980,84 +1023,60 @@ module Catapult
             @api_bamboo_cli_environment = "qc"
             @api_bamboo_cli_environment_trigger_time = "0 0 1 ? * *"
             if plan.include?("WIN")
-              @api_bamboo_cli_environment_trigger_conditions = "--value1 \"CAT-WINTEST\""
+              @api_bamboo_cli_environment_trigger_conditions = "CAT-WINTEST"
             else
-              @api_bamboo_cli_environment_trigger_conditions = "--value1 \"CAT-TEST\""
+              @api_bamboo_cli_environment_trigger_conditions = "CAT-TEST"
             end
           end
           if plan.include?("PROD")
             @api_bamboo_cli_environment = "production"
             @api_bamboo_cli_environment_trigger_time = "0 0 2 ? * *"
             if plan.include?("WIN")
-              @api_bamboo_cli_environment_trigger_conditions = "--value1 \"CAT-WINTEST,CAT-WINQC\""
+              @api_bamboo_cli_environment_trigger_conditions = "CAT-WINTEST,CAT-WINQC"
             else
-              @api_bamboo_cli_environment_trigger_conditions = "--value1 \"CAT-TEST,CAT-QC\""
+              @api_bamboo_cli_environment_trigger_conditions = "CAT-TEST,CAT-QC"
             end
           end
           # configure: project/plan
-          api_bamboo_cli_result_plan = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action createPlan --projectName "Catapult" --plan "#{plan}" #{@api_bamboo_cli_redirect}`; result=$?.success?
+          api_bamboo_cli_result_plan = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action createPlan --projectName "Catapult" --plan "#{plan}" --options addDefaultJob #{@api_bamboo_cli_redirect}`; result=$?.success?
           if ! api_bamboo_cli_result_plan.strip.include?("error")
             puts "   - #{api_bamboo_cli_result_plan.strip}"
           end
           # configure: trigger: scheduled
           api_bamboo_cli_result_plan_triggers = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTriggerList --plan "#{plan}" #{@api_bamboo_cli_redirect}`; result=$?.success?
           if ! api_bamboo_cli_result_plan_triggers.strip.include?("Scheduled")
-            api_bamboo_cli_result_plan_triggers = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTrigger --plan "#{plan}" --type "scheduled" --schedule "#{@api_bamboo_cli_environment_trigger_time}" --field1 "custom.triggerrCondition.plansGreen.plan" #{@api_bamboo_cli_environment_trigger_conditions} #{@api_bamboo_cli_redirect}`; result=$?.success?
+            api_bamboo_cli_result_plan_triggers = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTrigger --plan "#{plan}" --type "scheduled" --schedule "#{@api_bamboo_cli_environment_trigger_time}" --field "custom.triggerrCondition.plansGreen.plan=#{@api_bamboo_cli_environment_trigger_conditions}" #{@api_bamboo_cli_redirect}`; result=$?.success?
             puts "   - #{api_bamboo_cli_result_plan_triggers.strip}"
-          end
-          # configure: trigger: remote
-          # bitbucket
-          # https://confluence.atlassian.com/bitbucket/what-are-the-bitbucket-cloud-ip-addresses-i-should-use-to-configure-my-corporate-firewall-343343385.html
-          # https://ip-ranges.atlassian.com/
-          # github
-          # https://developer.github.com/changes/2019-03-29-webhooks-ip-changes/
-          # https://api.github.com/meta
-          if plan.include?("TEST")
-            api_bamboo_cli_result_plan_triggers = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTriggerList --plan "#{plan}" #{@api_bamboo_cli_redirect}`; result=$?.success?
-            if ! api_bamboo_cli_result_plan_triggers.strip.include?("18.205.93.0/25,18.234.32.128/25,13.52.5.0/25,192.30.252.0/22,185.199.108.0/22,140.82.112.0/20")
-              api_bamboo_cli_result_plan_triggers = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTrigger --plan "#{plan}" --type "remote" --ipRestriction "18.205.93.0/25,18.234.32.128/25,13.52.5.0/25,192.30.252.0/22,185.199.108.0/22,140.82.112.0/20" #{@api_bamboo_cli_redirect}`; result=$?.success?
-              puts "   - #{api_bamboo_cli_result_plan_triggers.strip}"
-            end
-          end
-          # configure: stage
-          api_bamboo_cli_result_stage = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addStage --plan "#{plan}" --stage "Default Stage" #{@api_bamboo_cli_redirect}`; result=$?.success?
-          if ! api_bamboo_cli_result_stage.strip.include?("error")
-            puts "   - #{api_bamboo_cli_result_stage.strip}"
-          end
-          # configure: job
-          api_bamboo_cli_result_job = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addJob --plan "#{plan}" --stage "Default Stage" --job "Job 1" #{@api_bamboo_cli_redirect}`; result=$?.success?
-          if ! api_bamboo_cli_result_job.strip.include?("error")
-            puts "   - #{api_bamboo_cli_result_job.strip}"
           end
           # configure: tasks
           # https://bobswift.atlassian.net/wiki/display/BCLI/Examples+for+AddTask+Action
           if plan.include?("BUILD")
             api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTask --plan "#{plan}" --job "JOB1" --id 1 #{@api_bamboo_cli_redirect}`; result=$?.success?
             if api_bamboo_cli_result_task.strip.include?("could not be found")
-              api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SCRIPT" --field1 "scriptLocation" --value1 "INLINE" --field2 "scriptBody" --value2 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "bamboo"'`; result=$?.success?
+              api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SCRIPT" --field "scriptLocation=INLINE" --field 'scriptBody=bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "bamboo"'`; result=$?.success?
               puts "   - #{api_bamboo_cli_result_task.strip}"
             else
-              api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 1 --taskKey "SCRIPT" --field1 "scriptLocation" --value1 "INLINE" --field2 "scriptBody" --value2 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "bamboo"'`; result=$?.success?
+              api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 1 --taskKey "SCRIPT" --field "scriptLocation=INLINE" --field 'scriptBody=bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "bamboo"'`; result=$?.success?
               puts "   - #{api_bamboo_cli_result_task.strip}"
             end
           elsif plan.include?("WIN")
             if @configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows"]["ip"] != nil
               api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTask --plan "#{plan}" --job "JOB1" --id 1 #{@api_bamboo_cli_redirect}`; result=$?.success?
               if api_bamboo_cli_result_task.strip.include?("could not be found")
-                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SCRIPT" --field1 "scriptLocation" --value1 "INLINE" --field2 "scriptBody" --value2 'python /catapult/provisioners/windows/provision.py "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows"]["ip"]}" "administrator" "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows"]["admin_password"]}" "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "iis"'`; result=$?.success?
+                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SCRIPT" --field "scriptLocation=INLINE" --field 'scriptBody=python /catapult/provisioners/windows/provision.py "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows"]["ip"]}" "administrator" "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows"]["admin_password"]}" "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "iis"'`; result=$?.success?
                 puts "   - #{api_bamboo_cli_result_task.strip}"
               else
-                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 1 --taskKey "SCRIPT" --field1 "scriptLocation" --value1 "INLINE" --field2 "scriptBody" --value2 'python /catapult/provisioners/windows/provision.py "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows"]["ip"]}" "administrator" "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows"]["admin_password"]}" "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "iis"'`; result=$?.success?
+                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 1 --taskKey "SCRIPT" --field "scriptLocation=INLINE" --field 'scriptBody=python /catapult/provisioners/windows/provision.py "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows"]["ip"]}" "administrator" "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows"]["admin_password"]}" "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "iis"'`; result=$?.success?
                 puts "   - #{api_bamboo_cli_result_task.strip}"
               end
             end
             if @configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows_mssql"]["ip"] != nil
               api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTask --plan "#{plan}" --job "JOB1" --id 2 #{@api_bamboo_cli_redirect}`; result=$?.success?
               if api_bamboo_cli_result_task.strip.include?("could not be found")
-                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SCRIPT" --field1 "scriptLocation" --value1 "INLINE" --field2 "scriptBody" --value2 'python /catapult/provisioners/windows/provision.py "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows_mssql"]["ip"]}" "administrator" "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows_mssql"]["admin_password"]}" "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "mssql"'`; result=$?.success?
+                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SCRIPT" --field "scriptLocation=INLINE" --field 'scriptBody=python /catapult/provisioners/windows/provision.py "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows_mssql"]["ip"]}" "administrator" "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows_mssql"]["admin_password"]}" "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "mssql"'`; result=$?.success?
                 puts "   - #{api_bamboo_cli_result_task.strip}"
               else
-                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 2 --taskKey "SCRIPT" --field1 "scriptLocation" --value1 "INLINE" --field2 "scriptBody" --value2 'python /catapult/provisioners/windows/provision.py "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows_mssql"]["ip"]}" "administrator" "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows_mssql"]["admin_password"]}" "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "mssql"'`; result=$?.success?
+                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 2 --taskKey "SCRIPT" --field "scriptLocation=INLINE" --field 'scriptBody=python /catapult/provisioners/windows/provision.py "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows_mssql"]["ip"]}" "administrator" "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["windows_mssql"]["admin_password"]}" "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "mssql"'`; result=$?.success?
                 puts "   - #{api_bamboo_cli_result_task.strip}"
               end
             end
@@ -1065,30 +1084,30 @@ module Catapult
             if @configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat"]["ip"] != nil
               api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTask --plan "#{plan}" --job "JOB1" --id 1 #{@api_bamboo_cli_redirect}`; result=$?.success?
               if api_bamboo_cli_result_task.strip.include?("could not be found")
-                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SSH" --field1 "host" --value1 "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat"]["ip"]}" --field2 "username" --value2 "root" --field3 "authType" --value3 "KEY" --field4 "private_key" --value4 @file --field5 "change_key" --value5 "true" --field6 "command" --value6 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "apache"' --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
+                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SSH" --field "host=#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat"]["ip"]}" --field "username_ssh_shared_credential=root" --field "authType=KEY" --field "sshAuthTypeSource=SHARED_CREDENTIALS" --field "sshSharedCredentialsId=#{@bamboo_shared_cred_id}" --field "username_ssh_key=root" --field "change_key=true" --field 'command=bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "apache"' #{@api_bamboo_cli_redirect}`; result=$?.success?
                 puts "   - #{api_bamboo_cli_result_task.strip}"
               else
-                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 1 --taskKey "SSH" --field1 "host" --value1 "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat"]["ip"]}" --field2 "username" --value2 "root" --field3 "authType" --value3 "KEY" --field4 "private_key" --value4 @file --field5 "change_key" --value5 "true" --field6 "command" --value6 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "apache"' --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
+                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 1 --taskKey "SSH" --field "host=#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat"]["ip"]}" --field "username_ssh_shared_credential=root" --field "authType=KEY" --field "sshAuthTypeSource=SHARED_CREDENTIALS" --field "sshSharedCredentialsId=#{@bamboo_shared_cred_id}" --field "username_ssh_key=root" --field "change_key=true" --field 'command=bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "apache"' #{@api_bamboo_cli_redirect}`; result=$?.success?
                 puts "   - #{api_bamboo_cli_result_task.strip}"
               end
             end
             if @configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat_mysql"]["ip"] != nil
               api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTask --plan "#{plan}" --job "JOB1" --id 2 #{@api_bamboo_cli_redirect}`; result=$?.success?
               if api_bamboo_cli_result_task.strip.include?("could not be found")
-                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SSH" --field1 "host" --value1 "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat_mysql"]["ip"]}" --field2 "username" --value2 "root" --field3 "authType" --value3 "KEY" --field4 "private_key" --value4 @file --field5 "change_key" --value5 "true" --field6 "command" --value6 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "mysql"' --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
+                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SSH" --field "host=#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat_mysql"]["ip"]}" --field "username_ssh_shared_credential=root" --field "authType=KEY" --field "sshAuthTypeSource=SHARED_CREDENTIALS" --field "sshSharedCredentialsId=#{@bamboo_shared_cred_id}" --field "username_ssh_key=root" --field "change_key=true" --field 'command=bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "mysql"' #{@api_bamboo_cli_redirect}`; result=$?.success?
                 puts "   - #{api_bamboo_cli_result_task.strip}"
               else
-                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 2 --taskKey "SSH" --field1 "host" --value1 "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat_mysql"]["ip"]}" --field2 "username" --value2 "root" --field3 "authType" --value3 "KEY" --field4 "private_key" --value4 @file --field5 "change_key" --value5 "true" --field6 "command" --value6 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "mysql"' --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
+                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 2 --taskKey "SSH" --field "host=#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat_mysql"]["ip"]}" --field "username_ssh_shared_credential=root" --field "authType=KEY" --field "sshAuthTypeSource=SHARED_CREDENTIALS" --field "sshSharedCredentialsId=#{@bamboo_shared_cred_id}" --field "username_ssh_key=root" --field "change_key=true" --field 'command=bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "mysql"' #{@api_bamboo_cli_redirect}`; result=$?.success?
                 puts "   - #{api_bamboo_cli_result_task.strip}"
               end
             end
             if (@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat1"] != nil && @configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat1"]["ip"] != nil)
               api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTask --plan "#{plan}" --job "JOB1" --id 3 #{@api_bamboo_cli_redirect}`; result=$?.success?
               if api_bamboo_cli_result_task.strip.include?("could not be found")
-                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SSH" --field1 "host" --value1 "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat1"]["ip"]}" --field2 "username" --value2 "root" --field3 "authType" --value3 "KEY" --field4 "private_key" --value4 @file --field5 "change_key" --value5 "true" --field6 "command" --value6 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "apache-node"' --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
+                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SSH" --field "host=#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat1"]["ip"]}" --field "username_ssh_shared_credential=root" --field "authType=KEY" --field "sshAuthTypeSource=SHARED_CREDENTIALS" --field "sshSharedCredentialsId=#{@bamboo_shared_cred_id}" --field "username_ssh_key=root" --field "change_key=true" --field 'command=bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "apache-node"' #{@api_bamboo_cli_redirect}`; result=$?.success?
                 puts "   - #{api_bamboo_cli_result_task.strip}"
               else
-                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 3 --taskKey "SSH" --field1 "host" --value1 "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat1"]["ip"]}" --field2 "username" --value2 "root" --field3 "authType" --value3 "KEY" --field4 "private_key" --value4 @file --field5 "change_key" --value5 "true" --field6 "command" --value6 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "apache-node"' --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
+                api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 3 --taskKey "SSH" --field "host=#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat1"]["ip"]}" --field "username_ssh_shared_credential=root" --field "authType=KEY" --field "sshAuthTypeSource=SHARED_CREDENTIALS" --field "sshSharedCredentialsId=#{@bamboo_shared_cred_id}" --field "username_ssh_key=root" --field "change_key=true" --field 'command=bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "apache-node"' #{@api_bamboo_cli_redirect}`; result=$?.success?
                 puts "   - #{api_bamboo_cli_result_task.strip}"
               end
             else
@@ -1100,28 +1119,22 @@ module Catapult
       else
         puts " * Could not validate your Bamboo CLI license, please ensure the Bamboo CLI Connector add-on is installed with a valid license. Otherwise, you will need to manually manage the configuration of the Bamboo project, plans, stages, jobs, and tasks.".color(Colors::YELLOW)
       end
-      # https://docs.atlassian.com/bamboo/REST/
-      # https://docs.atlassian.com/atlassian-bamboo/5.15.7/com/atlassian/bamboo/testutils/backdoor/Backdoor.html
-      # https://forge.puppet.com/atlassian/bamboo_rest/changelog
+      # https://developer.atlassian.com/server/bamboo/rest-apis/
+      # https://docs.atlassian.com/atlassian-bamboo/REST/7.2.2/
       puts "[Bamboo API]"
       if @configuration["company"]["bamboo_base_url"] == nil || @configuration["company"]["bamboo_username"] == nil || @configuration["company"]["bamboo_password"] == nil
         catapult_exception("Please set [\"company\"][\"bamboo_base_url\"] and [\"company\"][\"bamboo_username\"] and [\"company\"][\"bamboo_password\"] in secrets/configuration.yml")
       else
         # global permissions
         begin
-          uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/admin/latest/permissions/roles?name=ROLE_ANONYMOUS")
+          uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/api/latest/permissions/global/roles/ANONYMOUS")
           Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-            request = Net::HTTP::Post.new uri.request_uri
+            request = Net::HTTP::Delete.new uri.request_uri
             request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
             request.add_field "Content-Type", "application/json"
-            request.body = ""\
-              "{"\
-                "\"self\":\"#{@configuration["company"]["bamboo_base_url"]}rest/admin/latest/permissions/roles?name=ROLE_ANONYMOUS\","\
-                "\"name\":\"ROLE_ANONYMOUS\","\
-                "\"permissions\":[]"\
-              "}"
+            request.body = "[\"READ\"]"
             response = http.request(request)
-            if response.code.to_f.between?(399,499)
+            if response.code.to_f.between?(399,403)
               catapult_exception("#{response.code} The Bamboo Admin API could not authenticate, please verify [\"company\"][\"bamboo_base_url\"] and [\"company\"][\"bamboo_username\"] and [\"company\"][\"bamboo_password\"]. If the credentials are correct, you may need to login to Bamboo #{@configuration["company"]["bamboo_base_url"]} and provide an answer to a CAPTCHA.")
             elsif response.code.to_f === 404
               catapult_exception("#{response.code} The Bamboo Admin API is not enabled, please provision and restart your Bamboo build server.")
@@ -1130,57 +1143,6 @@ module Catapult
             else
               puts " * Bamboo Admin API authenticated successfully."
               puts "   - Successfully configured Bamboo global permissions settings."
-            end
-          end
-        rescue Net::ReadTimeout => ex
-          puts " * The Bamboo API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-          puts "   - Error was: #{ex.class}".color(Colors::RED)
-        rescue Errno::ETIMEDOUT => ex
-          puts " * The Bamboo API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-          puts "   - Error was: #{ex.class}".color(Colors::RED)
-        rescue Errno::ECONNREFUSED => ex
-          puts " * The Bamboo API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-          puts "   - Error was: #{ex.class}".color(Colors::RED)
-        end
-        #uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/admin/latest/permissions/roles?name=ROLE_ANONYMOUS")
-        #Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-        #  request = Net::HTTP::Get.new uri.request_uri
-        #  request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
-        #  response = http.request(request)
-        #  puts response.body
-        #end
-        # smtp
-        # https://jira.atlassian.com/browse/BAM-9344?page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel&showAll=true
-        begin
-          uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/admin/latest/config/mailServer")
-          Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-            request = Net::HTTP::Put.new uri.request_uri
-            request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
-            request.add_field "Content-Type", "application/json"
-            request.body = ""\
-              "{"\
-                "\"self\":\"#{@configuration["company"]["bamboo_base_url"]}rest/admin/latest/config/mailServer\","\
-                "\"name\":\"Bamboo\","\
-                "\"fromAddress\":\"#{@configuration["company"]["email"]}\","\
-                "\"subjectPrefix\":\"[Bamboo]\","\
-                "\"precedenceBulkHeaderExcluded\":false,"\
-                "\"emailSetting\":\"SMTP\","\
-                "\"smtpServer\":\"smtp.sendgrid.net\","\
-                "\"smtpPort\":\"587\","\
-                "\"smtpUsername\":\"#{@configuration["company"]["sendgrid_username"]}\","\
-                "\"smtpPassword\":\"#{@configuration["company"]["sendgrid_password"]}\","\
-                "\"tlsEnabled\":true"\
-              "}"
-            response = http.request(request)
-            if response.code.to_f.between?(399,401)
-              catapult_exception("#{response.code} The Bamboo Admin API could not authenticate, please verify [\"company\"][\"bamboo_base_url\"] and [\"company\"][\"bamboo_username\"] and [\"company\"][\"bamboo_password\"]. If the credentials are correct, you may need to login to Bamboo #{@configuration["company"]["bamboo_base_url"]} and provide an answer to a CAPTCHA.")
-            elsif response.code.to_f === 404
-              catapult_exception("#{response.code} The Bamboo Admin API is not enabled, please provision and restart your Bamboo build server.")
-            elsif response.code.to_f.between?(500,600)
-              puts " * Bamboo Admin API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-            else
-              puts " * Bamboo Admin API authenticated successfully."
-              puts "   - Successfully configured Bamboo SMTP settings."
             end
           end
         rescue Net::ReadTimeout => ex
@@ -1513,15 +1475,15 @@ module Catapult
             "smtp.sendgrid.net",
             587,
             Socket.gethostname,
-            "#{@configuration["company"]["sendgrid_username"]}",
-            "#{@configuration["company"]["sendgrid_password"]}",
+            "apikey",
+            "#{@configuration["company"]["sendgrid_api_key"]}",
             :login
           )
         rescue Net::ReadTimeout => ex
           puts " * The SendGrid API[SMTP] seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
           puts "   - Error was: #{ex.class}".color(Colors::RED)
         rescue Net::SMTPAuthenticationError => ex
-          catapult_exception("The SendGrid API[SMTP] could not authenticate, please verify [\"company\"][\"sendgrid_username\"] and [\"company\"][\"sendgrid_password\"].")
+          catapult_exception("The SendGrid API[SMTP] could not authenticate, please verify [\"company\"][\"sendgrid_api_key\"] is correct.")
         end
       end
       puts " * SendGrid API[SMTP] authenticated successfully."
@@ -2154,6 +2116,54 @@ module Catapult
       end
     end
 
+    working_dir = Dir.pwd
+    File.write('catapult/catapult-build.rb',
+    "#!/usr/bin/env ruby
+    require 'yaml'
+
+    if File.exist?(File.expand_path('#{working_dir}/secrets/configuration.yml'))
+      @configuration = YAML.load_file('#{working_dir}/secrets/configuration.yml')
+
+      # override bamboo credentials when defined in configuration-user.yml
+      if File.exist?(File.expand_path('#{working_dir}/secrets/configuration-user.yml'))
+        @configuration_user = YAML.load_file('#{working_dir}/secrets/configuration-user.yml')
+        api_bamboo_username = @configuration_user['settings']['bamboo_username'] ? @configuration_user['settings']['bamboo_username'] : @configuration['company']['bamboo_username']
+        api_bamboo_password = @configuration_user['settings']['bamboo_password'] ? @configuration_user['settings']['bamboo_password'] : @configuration['company']['bamboo_password']
+      else
+        api_bamboo_username = @configuration['company']['bamboo_username']
+        api_bamboo_password = @configuration['company']['bamboo_password']
+      end
+
+      if (RbConfig::CONFIG['host_os'] =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/)
+        @environment = :windows
+      else (RbConfig::CONFIG['host_os'] =~ /darwin|mac os|linux|solaris|bsd/)
+        @environment = :posix
+      end
+
+      if @environment == :posix
+        @api_bamboo_cli = '#{working_dir}/catapult/installers/atlassian-cli-9.5.0/acli.sh bamboo'
+        @api_bamboo_cli_redirect = '2>&1'
+      elsif @environment == :windows
+        @api_bamboo_cli = '#{working_dir}/catapult/installers/atlassian-cli-9.5.0/acli.bat bamboo'
+        @api_bamboo_cli_redirect = '2>'
+      end
+
+      api_bamboo_cli_result = `\#{@api_bamboo_cli} --server \#{@configuration['company']['bamboo_base_url']} --password \"\#{api_bamboo_password}\" --user \"\#{api_bamboo_username}\" --action queueBuild --plan CAT-TEST \#{@api_bamboo_cli_redirect}`; result=$?.success?
+      if api_bamboo_cli_result.strip.include?('Connection refused')
+        puts 'The Bamboo CLI seems to be down. Skipping attempt to queue build job for TEST environment...'
+      elsif api_bamboo_cli_result.strip.include?('401')
+        puts \"The Bamboo CLI could not authenticate. This likely means you need to login to Bamboo as \#{api_bamboo_username} at \#{@configuration['company']['bamboo_base_url']} and provide an answer to a CAPTCHA challenge.\"
+      elsif ! result
+        puts 'The attempt to queue a build for the TEST environment failed. This likely means a build is already running.'
+      else
+        puts \"Bamboo build for test environment queued successfully: \#{api_bamboo_cli_result}\"
+      end
+    else
+        puts 'The Catapult configuration is not decrypted. Skipping attempt to queue build job for TEST environment...'
+    end
+    ")
+    File.chmod(0755,'catapult/catapult-build.rb')
+
 
 
     # remove unique lock file
@@ -2164,7 +2174,7 @@ module Catapult
     # validate @configuration["websites"]
     if ["provision","status"].include?(ARGV[0]) && @configuration_user["settings"]["admin"]
       puts "\nVerification of configuration[\"websites\"]:".color(Colors::WHITE)
-      # temporarily add catapult to verify repo and add bamboo webhooks
+      # temporarily add catapult to verify repo
       @configuration["websites"]["catapult"] = *(["domain" => "#{@repo}", "repo" => "#{@repo}"])
       # validate @configuration["websites"]
       @configuration["websites"].each do |service,data|
@@ -2176,7 +2186,7 @@ module Catapult
         domains_sorted = Array.new
         unless @configuration["websites"]["#{service}"] == nil
           puts "\n[#{service}] #{@configuration["websites"]["#{service}"].nil? ? "0" : @configuration["websites"]["#{service}"].length} total"
-          puts "[domain]".ljust(40) + "[repo]".ljust(12) + "[repo size]".ljust(12) + "[repo write access]".ljust(20) + "[develop]".ljust(16) + "[release]".ljust(16) + "[master]".ljust(16) + "[bamboo webhook]".ljust(18)
+          puts "[domain]".ljust(40) + "[repo]".ljust(12) + "[repo size]".ljust(12) + "[repo write access]".ljust(20) + "[develop]".ljust(16) + "[release]".ljust(16) + "[master]".ljust(16)
           puts "\n"
           @configuration["websites"]["#{service}"].each do |instance|
             # start new row
@@ -2629,102 +2639,6 @@ module Catapult
                 end
               end
             end
-            # create bamboo webhook per bitbucket repo
-            if "#{repo_split_2[0]}" == "bitbucket.org"
-              @api_bitbucket_repo_hook = false
-              uri = URI("https://api.bitbucket.org/2.0/repositories/#{repo_split_3[0]}/hooks")
-              Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                request = Net::HTTP::Get.new uri.request_uri
-                request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
-                response = http.request(request)
-                if response.code.to_f.between?(399,600)
-                  puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-                else
-                  api_github_repo_hooks = JSON.parse(response.body)
-                  api_github_repo_hooks["values"].each do |hook|
-                    if hook["description"] == "bamboo:CAT-TEST" && hook["url"] == "#{@configuration["company"]["bamboo_base_url"]}rest/triggers/1.0/remote/changeDetection?planKey=CAT-TEST&skipBranches=false"
-                      @api_bitbucket_repo_hook = true
-                    end
-                  end
-                  unless @api_bitbucket_repo_hook
-                    uri = URI("https://api.bitbucket.org/2.0/repositories/#{repo_split_3[0]}/hooks")
-                    Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                      request = Net::HTTP::Post.new uri.request_uri
-                      request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
-                      request.add_field "Content-Type", "application/json"
-                      request.body = ""\
-                        "{"\
-                          "\"description\":\"bamboo:CAT-TEST\","\
-                          "\"url\":\"#{@configuration["company"]["bamboo_base_url"]}rest/triggers/1.0/remote/changeDetection?planKey=CAT-TEST&skipBranches=false\","\
-                          "\"active\":true,"\
-                          "\"events\":"\
-                            "["\
-                              "\"repo:push\""\
-                            "]"\
-                        "}"
-                      response = http.request(request)
-                      if response.code.to_f.between?(500,600)
-                        puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-                      elsif response.code.to_f.between?(399,499)
-                        catapult_exception("Unable to configure Bitbucket Bamboo webhook for websites => #{service} => domain => #{instance["domain"]}. Ensure the bitbucket_username defined in secrets/configuration.yml has correct access to the repository.")
-                      else
-                        row.push("configured".ljust(17))
-                      end
-                    end
-                  else
-                    row.push("configured".ljust(17))
-                  end
-                end
-              end
-            end
-            # create bamboo webhook per github repo
-            if "#{repo_split_2[0]}" == "github.com"
-              @api_github_repo_hook = false
-              uri = URI("https://api.github.com/repos/#{repo_split_3[0]}/hooks")
-              Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                request = Net::HTTP::Get.new uri.request_uri
-                request.basic_auth "#{@configuration["company"]["github_username"]}", "#{@configuration["company"]["github_personal_access_token"]}"
-                response = http.request(request)
-                if response.code.to_f.between?(399,600)
-                  puts "   - The GitHub API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-                else
-                  api_github_repo_hooks = JSON.parse(response.body)
-                  api_github_repo_hooks.each do |hook|
-                    if hook["config"]["url"] == "#{@configuration["company"]["bamboo_base_url"]}rest/triggers/1.0/remote/changeDetection?planKey=CAT-TEST&skipBranches=false"
-                      @api_github_repo_hook = true
-                    end
-                  end
-                  unless @api_github_repo_hook
-                    uri = URI("https://api.github.com/repos/#{repo_split_3[0]}/hooks")
-                    Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                      request = Net::HTTP::Post.new uri.request_uri
-                      request.basic_auth "#{@configuration["company"]["github_username"]}", "#{@configuration["company"]["github_personal_access_token"]}"
-                      request.add_field "Content-Type", "application/json"
-                      request.body = ""\
-                        "{"\
-                          "\"name\":\"web\","\
-                          "\"active\":true,"\
-                          "\"config\":"\
-                            "{"\
-                              "\"url\":\"#{@configuration["company"]["bamboo_base_url"]}rest/triggers/1.0/remote/changeDetection?planKey=CAT-TEST&skipBranches=false \","\
-                              "\"content_type\":\"json\""\
-                            "}"\
-                        "}"
-                      response = http.request(request)
-                      if response.code.to_f.between?(500,600)
-                        puts "   - The GitHub API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-                      elsif response.code.to_f.between?(399,499)
-                        catapult_exception("Unable to configure GitHub Bamboo webhook for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
-                      else
-                        row.push("configured".ljust(17))
-                      end
-                    end
-                  else
-                    row.push("configured".ljust(17))
-                  end
-                end
-              end
-            end
 
             puts row.join(" ")
 
@@ -2741,8 +2655,17 @@ module Catapult
     @configuration["websites"].delete("catapult")
 
 
+    # setup post-commit hook to queue test environment build on Catapult changes
+    working_dir = Dir.pwd
+    FileUtils.mkdir_p(".git/hooks")
+    File.write(".git/hooks/post-commit",
+        "#!/usr/bin/env ruby
+        system('#{working_dir}/catapult/catapult-build.rb')
+        ")
+    File.chmod(0777,".git/hooks/post-commit")
 
-    # create arrays of domains for localdev hosts file
+
+    # create arrays of domains for localdev hosts file & setup post-commit hook to queue test environment build
     @dev_redhat_hosts = Array.new
     unless @configuration["websites"]["apache"] == nil
       @configuration["websites"]["apache"].each do |instance|
@@ -2753,6 +2676,13 @@ module Catapult
           @dev_redhat_hosts.push("dev.#{instance["domain"]}.#{instance["domain_tld_override"]}")
           @dev_redhat_hosts.push("www.dev.#{instance["domain"]}.#{instance["domain_tld_override"]}")
         end
+
+        FileUtils.mkdir_p("repositories/apache/#{instance['domain']}/.git/hooks")
+        File.write("repositories/apache/#{instance['domain']}/.git/hooks/post-commit",
+        "#!/usr/bin/env ruby
+        system('#{working_dir}/catapult/catapult-build.rb')
+        ")
+        File.chmod(0777,"repositories/apache/#{instance['domain']}/.git/hooks/post-commit")
       end
     end
     @dev_windows_hosts = Array.new
@@ -2765,6 +2695,13 @@ module Catapult
           @dev_windows_hosts.push("dev.#{instance["domain"]}.#{instance["domain_tld_override"]}")
           @dev_windows_hosts.push("www.dev.#{instance["domain"]}.#{instance["domain_tld_override"]}")
         end
+
+        FileUtils.mkdir_p("repositories/iis/#{instance['domain']}/.git/hooks")
+        File.write("repositories/iis/#{instance['domain']}/.git/hooks/post-commit",
+        "#!/usr/bin/env ruby
+        system('#{working_dir}/catapult/catapult-build.rb')
+        ")
+        File.chmod(0777,"repositories/iis/#{instance['domain']}/.git/hooks/post-commit")
       end
     end
 

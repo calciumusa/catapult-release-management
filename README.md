@@ -147,6 +147,7 @@ Catapult orchestrates the following key components of DevOps to provide you with
     - [Website Concurrency Maximum](#website-concurrency-maximum)
     - [Interpreting Apache AB Results](#interpreting-apache-ab-results)
 - [How-to](#how-to)
+    - [Vagrant Convenience Commands](#vagrant-convenience-commands)
     - [Rotating Secrets](#rotating-secrets)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
@@ -321,6 +322,10 @@ Catapult uses Vagrant and the command line of a developer's workstation, below i
        3. Run `vagrant status` to verify the correct workstation software is installed and to generate your Catapult user files
        4. Contact your Catapult admin for your Catapult instance's GPG passphrase and place at `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
        5. You may stop at this point and contact your Catapult admin for next steps. The following [Instance Setup](#instance-setup) and [Services Setup](#services-setup) will be, or have been, completed by your Catapult admin
+    3. **Any role: personal accounts**:
+       1. Users can choose to specify a personal Bamboo user (rather than the company user) for certain Bamboo calls that originate locally
+           1. Set `~/secrets/configuration-user.yml["settings"]["bamboo_username"]` to the username for this Bamboo user
+           2. Set `~/secrets/configuration-user.yml["settings"]["bamboo_password"]` to the password for this Bamboo user
 
 ## Instance Setup ##
 
@@ -441,7 +446,7 @@ Bitbucket provides free private repositories and GitHub provides free public rep
     * The initial `up` will take some time for, please be patient
 4. Login to DigitalOcean to obtain the IP address of the virtual machine to access via URL
     * Place your Bamboo base URL at `~/secrets/configuration.yml["company"]["bamboo_base_url"]`, the format should be http://[digitalocean-ip-here]/
-5. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license.
+5. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license. Select Express installation.
 6. You will next be prompted to enter the following information:
     * Username (required) - root
     * Password (required) - specify a complex password
@@ -451,14 +456,20 @@ Bitbucket provides free private repositories and GitHub provides free public rep
 
 **Bamboo Configuration**
 
-To avoid having to manually configure the Bamboo project, plans, stages, jobs, and tasks configuration, you may optionally install and purchase the "Bob Swift Atlassian Add-ons - Bamboo CLI Connector" Bamboo add-on. Otherwise, the manual setup configuration steps are outlined below:
-
 1. Place your Bamboo username at `~/secrets/configuration.yml["company"]["bamboo_username"]`
     * Normally root for Bamboo Server
 2. Place your Bamboo password at `~/secrets/configuration.yml["company"]["bamboo_password"]`
-3. Disable anonymous user access by clicking the gear at the top right and going to Overview
+3. Allow anonymous users to trigger remote repository change detection by clicking the gear at the top right and going to Overview
+   1. Next, under Security, go to Security settings and click the Edit button at the bottom
+   2. Check the "Allow anonymous users to trigger remote repository change detection and Bamboo Specs detection" setting and click Save
+
+To avoid having to manually configure the Bamboo project, plans, stages, jobs, and tasks configuration, you may optionally install and purchase the "Bob Swift Atlassian Add-ons - Bamboo Command Line Interface (CLI)" Bamboo add-on. To install, click the settings gear top right, and click "Manage apps". Once the add-on is installed, by running a `vagrant status`, Catapult will automatically detect its existance and automatically configure settings required.
+
+Otherwise, the manual setup configuration steps are outlined below:
+
+1. Disable anonymous user access by clicking the gear at the top right and going to Overview
     1. Next, under Security, go to Global permissions and remove Access from Anonymous Users
-4. Click Create > Create a new plan from the top navigation:
+2. Click Create > Create a new plan from the top navigation:
     1. **Create Catapult Project and create BUILD Plan**
         * *Project and build plan name*
             1. Project > New Project
@@ -542,11 +553,11 @@ To avoid having to manually configure the Bamboo project, plans, stages, jobs, a
 ### 6. **Email:**
 1. **SendGrid** sign-up and configuration
     1. Create a SendGrid account at https://sendgrid.com/
-        1. Place the username that you used to sign up for SendGrid at `~/secrets/configuration.yml["company"]["sendgrid_username"]`
-        2. Place the password of the account for SendGrid at `~/secrets/configuration.yml["company"]["sendgrid_password"]`
     2. Sign in to your SendGrid account
     3. Go to Settings > API Keys.
     4. Generate an API key named "Catapult" and place at `~/secrets/configuration.yml["company"]["sendgrid_api_key"]`
+        1. Place the username "apikey" at `~/secrets/configuration.yml["company"]["sendgrid_username"]`
+        2. Place the API key at `~/secrets/configuration.yml["company"]["sendgrid_password"]`
 
 ### 7. **Verify Configuration:**
 1. To verify all of the configuration that you just set, open your command line and change directory into your fork of Catapult, then run `vagrant status`. Catapult will confirm connection to all of the Services and inform you of any problems.
@@ -1643,7 +1654,12 @@ Percentage of the requests served within a certain time (ms)
 
 # How-to #
 
-This section outlines Catapult maintenance tasks.
+This section outlines Catapult usage and maintenance.
+
+## Vagrant Convenience Commands ##
+
+In the LocalDev environment, convenience commands are provided for use with Vagrant. These allow you to execute `reload`, `provision`, or `up` against both dev environment VMs with a single command. Simply use `dev` as the machine name; e.g. `vagrant reload dev` or `vagrant provision dev`.
+
 
 
 ## Rotating Secrets ##
