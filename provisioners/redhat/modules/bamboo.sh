@@ -8,6 +8,7 @@ sudo pip install pywinrm --upgrade
 sudo yum install -y java-11-openjdk-devel.x86_64
 sudo alternatives --set java java-11-openjdk.x86_64
 java -version
+sudo yum remove -y java-1.8.0-openjdk-devel.x86_64
 
 # if the defined bamboo version is not installed, download and install
 if [ ! -d /usr/local/src/bamboo/atlassian-bamboo-${bamboo_version}/atlassian-bamboo ]; then
