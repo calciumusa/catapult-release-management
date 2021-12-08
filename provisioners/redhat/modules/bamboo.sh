@@ -1,11 +1,12 @@
 # define our bamboo version
-bamboo_version="7.2.2"
+bamboo_version="8.0.5"
 
 # install pywinrm for windows deployment support
 sudo pip install pywinrm --upgrade
 
 # install java
-sudo yum install -y java-1.8.0-openjdk-devel.x86_64 
+sudo yum install -y java-11-openjdk-devel.x86_64
+sudo alternatives --set java java-11-openjdk.x86_64
 java -version
 
 # if the defined bamboo version is not installed, download and install

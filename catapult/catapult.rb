@@ -980,10 +980,10 @@ module Catapult
       # https://bobswift.atlassian.net/wiki/display/BCLI/Reference
       puts "[Bamboo CLI]"
       if @environment == :posix
-        @api_bamboo_cli = "bash catapult/installers/atlassian-cli-9.5.0/acli.sh bamboo"
+        @api_bamboo_cli = "bash catapult/installers/atlassian-cli-10.0.0/acli.sh bamboo"
         @api_bamboo_cli_redirect = "2>&1"
       elsif @environment == :windows
-        @api_bamboo_cli = "catapult/installers/atlassian-cli-9.5.0/acli.bat bamboo"
+        @api_bamboo_cli = "catapult/installers/atlassian-cli-10.0.0/acli.bat bamboo"
         @api_bamboo_cli_redirect = "2>"
       end
       api_bamboo_cli_result = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action validateLicense #{@api_bamboo_cli_redirect}`; result=$?.success?
