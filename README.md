@@ -147,6 +147,7 @@ Catapult orchestrates the following key components of DevOps to provide you with
     - [Website Concurrency Maximum](#website-concurrency-maximum)
     - [Interpreting Apache AB Results](#interpreting-apache-ab-results)
 - [How-to](#how-to)
+    - [Vagrant Convenience Commands](#vagrant-convenience-commands)
     - [Rotating Secrets](#rotating-secrets)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
@@ -159,7 +160,7 @@ Catapult orchestrates the following key components of DevOps to provide you with
 
 Catapult intelligently manages the following website software that have been chosen from trending usage statistics from [BuiltWith](https://trends.builtwith.com/cms) and aligns with the [CentOS 7](http://mirror.centos.org/centos/7/os/x86_64/Packages/) and [Software Collections](https://www.softwarecollections.org/) trunks:
 
-Software | [Key](#websites) | Required PHP Version | Running PHP Version | Released | End-of-Life
+Software | [Key](#websites) | Minimum PHP Version | Running PHP Version | Released | End-of-Life
 ---------|------------------|---------------------|---------------------|----------|------------
 CodeIgniter 2                     | `codeigniter2`         | 5.1.6  | 5.4 | January 28, 2011   | [October 31, 2015](http://forum.codeigniter.com/thread-61357.html)
 CodeIgniter 3                     | `codeigniter3`         | 5.6    | 7.1 | March 30, 2015     |
@@ -176,8 +177,9 @@ MediaWiki 1                       | `mediawiki1`           | 5.5.9  | 7.1 | Dece
 Moodle 3                          | `moodle3`              | 5.6.5  | 7.1 | November 16, 2015  |
 SilverStripe 3                    | `silverstripe3`        | 5.3.3  | 5.4 | June 29, 2012      |
 SuiteCRM 7                        | `suitecrm7`            | 5.5    | 7.1 | October 21, 2013   | [November 15, 2019](http://support.sugarcrm.com/Resources/Supported_Versions/)
-WordPress 4                       | `wordpress4`           | 5.2.4  | 7.1 | September 4, 2014  |
-WordPress 5                       | `wordpress5`           | 5.2.4  | 7.2 | December 6, 2018   |
+WordPress 4                       | `wordpress4`           | 5.2    | 7.1 | September 4, 2014  |
+WordPress 5                       | `wordpress5`           | 5.6    | 7.2 | December 6, 2018   |
+WordPress 6                       | `wordpress6`           | 5.6    | 7.3 | May 24, 2022       |
 XenForo 1                         | `xenforo1`             | 5.2.11 | 5.4 | March 8, 2011      | [December 31, 2019](https://xenforo.com/community/threads/xenforo-1-5-end-of-life-schedule.157679/)
 XenForo 2                         | `xenforo2`             | 5.4.0  | 7.1 | November 28, 2017  |
 Zend Framework 2                  | `zendframework2`       | 5.3.23 | 5.4 | September 5, 2012  |
@@ -194,8 +196,9 @@ Catapult maintains a high level of integrity when it comes to PHP versions, thro
 PHP Version | End-of-Life | Maintainer | Updater
 ------------|-------------|------------|--------
 5.4 | June 30, 2024 | [CentOS](https://wiki.centos.org/FAQ/General#head-fe8a0be91ee3e7dea812e8694491e1dde5b75e6d) | [Red Hat](https://access.redhat.com/security/updates/backporting)
-7.1 | December 1, 2019 | [SCLO](https://www.softwarecollections.org/en/scls/rhscl/rh-php71/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
-7.2 | November 30, 2020 | [SCLO](https://www.softwarecollections.org/en/scls/rhscl/rh-php72/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
+7.1 | December 1, 2019 | [Software Collections](https://www.softwarecollections.org/en/scls/rhscl/rh-php71/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
+7.2 | November 30, 2020 | [Software Collections](https://www.softwarecollections.org/en/scls/rhscl/rh-php72/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
+7.3 | June 30, 2024 | [Jan Staněk](https://www.softwarecollections.org/en/scls/jstanek/rh-php73/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
 
 ### End-of-Life (EOL) ###
 
@@ -245,6 +248,13 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
 # Setup Catapult #
 
 Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#instance-setup), and [Services Setup](#services-setup) as described in the following sections.
+
+There are two roles when using Catapult, Catapult User and Catapult Admin.
+
+* Catapult Users are developers who use Catapult for developing within the websites that the Catapult Admin has added and configured
+* Catapult Admins are administrators who setup their organization's Catapult instance and required services
+
+The Catapult User only needs to complete the [Developer Setup](#developer-setup) and the Catapult Admin completes the [Instance Setup](#instance-setup) and [Services Setup](#services-setup).
 
 **Please Note:**
 * It is advised to turn off any antivirus software that you may have installed during setup and usage of Catapult - tasks such as forwarding ports and writing hosts files may be blocked.
@@ -308,22 +318,24 @@ Catapult uses Vagrant and the command line of a developer's workstation, below i
         1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.9/vagrant_2.2.9_x86_64.rpm`
         2. Install Vagrant using yum e.g. `sudo yum install vagrant_2.2.9_x86_64.rpm`
 6. **Java SE Development Kit**
-    1. Follow the instructions outlined for your system http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
-7. **Verification**
-    1. To verify that everything has been properly installed, please run a `vagrant status`
-8. **Instance Configuration**
+    1. Download the respective Java SE Development Kit for your system http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+7. **Instance Configuration**
     1. **If you are a Catapult admin**:
        1. If you are setting up a new Catapult instance, continue on to the [Instance Setup](#instance-setup) step. If you are configuring a new workstation with an existing Catapult instance, ensure the following is completed:
            1. Run `vagrant status` to verify the correct workstation software is installed and to generate your Catapult user files
            2. Set `~/secrets/configuration-user.yml["settings"]["admin"]` to `true`
-           3. Enable Git credential caching by following the instructions outlined for your system to [store your Git credentials](https://docs.github.com/en/github/using-git/caching-your-github-credentials-in-git)
+           3. Enable Git credential caching by following the instructions outlined for your system to [store your Git credentials](https://docs.github.com/en/github/using-git/caching-your-github-credentials-in-git). This will allow you to push changes to your Catapult instance without prompt for credentials.
     2. **If you are a Catapult user**:
-       1. Using Git, clone your team's Catapult instance repository. Contact your Catapult admin for more information if required
+       1. Using Git, clone your team's Catapult instance repository
        2. Once cloned, from your workstation's terminal, change directory into the root of the newly cloned Catapult repository
        3. Run `vagrant status` to verify the correct workstation software is installed and to generate your Catapult user files
-       4. Set `~/secrets/configuration-user.yml["settings"]["admin"]` to `false`
-       5. Contact your Catapult admin for your Catapult instance's `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
-       6. You may stop at this point and contact your Catapult admin for next steps. The [Instance Setup](#instance-setup) and [Services Setup](#services-setup) will be, or have been, completed by your Catapult admin
+       4. Contact your Catapult admin for your Catapult instance's GPG passphrase and place at `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
+       5. You may stop at this point and contact your Catapult admin for next steps. The following [Instance Setup](#instance-setup) and [Services Setup](#services-setup) will be, or have been, completed by your Catapult admin
+    3. **Any role: personal accounts**:
+       1. Users can choose to specify a personal Bamboo user (rather than the company user) for certain Bamboo calls that originate locally
+           1. Set `~/secrets/configuration-user.yml["settings"]["bamboo_username"]` to the username for this Bamboo user
+           2. Set `~/secrets/configuration-user.yml["settings"]["bamboo_password"]` to the password for this Bamboo user
+ 8. If you are a Catapult User, contact your Catapult Admin for next steps. If you are a Catapult Admin, continue to the [Instance Setup](#instance-setup) and [Services Setup](#services-setup).
 
 ## Instance Setup ##
 
@@ -423,7 +435,9 @@ Bitbucket provides free private repositories and GitHub provides free public rep
 1. **Bitbucket** sign-up and configuration
     1. Create an account at https://bitbucket.org
         1. Place the username (not the email address) that you used to sign up for Bitbucket at `~/secrets/configuration.yml["company"]["bitbucket_username"]`
-        2. Place the password of the account for Bitbucket at `~/secrets/configuration.yml["company"]["bitbucket_password"]`
+    2. Create an App password at https://bitbucket.org/account/settings/app-passwords/
+        1. Create an App password with a label of "Catapult" and check off all Read permissions, with the exception of "Repositories", check up to Admin permissions.
+        1. Place the App password at `~/secrets/configuration.yml["company"]["bitbucket_password"]`
     2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key in https://bitbucket.org/account/user/`your-user-here`/ssh-keys/ named "Catapult"
 2. **GitHub** sign-up and configuration
     1. Create an account at https://github.com
@@ -444,7 +458,7 @@ Bitbucket provides free private repositories and GitHub provides free public rep
     * The initial `up` will take some time for, please be patient
 4. Login to DigitalOcean to obtain the IP address of the virtual machine to access via URL
     * Place your Bamboo base URL at `~/secrets/configuration.yml["company"]["bamboo_base_url"]`, the format should be http://[digitalocean-ip-here]/
-5. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license.
+5. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license. Select Express installation.
 6. You will next be prompted to enter the following information:
     * Username (required) - root
     * Password (required) - specify a complex password
@@ -454,14 +468,20 @@ Bitbucket provides free private repositories and GitHub provides free public rep
 
 **Bamboo Configuration**
 
-To avoid having to manually configure the Bamboo project, plans, stages, jobs, and tasks configuration, you may optionally install and purchase the "Bob Swift Atlassian Add-ons - Bamboo CLI Connector" Bamboo add-on. Otherwise, the manual setup configuration steps are outlined below:
-
 1. Place your Bamboo username at `~/secrets/configuration.yml["company"]["bamboo_username"]`
     * Normally root for Bamboo Server
 2. Place your Bamboo password at `~/secrets/configuration.yml["company"]["bamboo_password"]`
-3. Disable anonymous user access by clicking the gear at the top right and going to Overview
+3. Allow anonymous users to trigger remote repository change detection by clicking the gear at the top right and going to Overview
+   1. Next, under Security, go to Security settings and click the Edit button at the bottom
+   2. Check the "Allow anonymous users to trigger remote repository change detection and Bamboo Specs detection" setting and click Save
+
+To avoid having to manually configure the Bamboo project, plans, stages, jobs, and tasks configuration, you may optionally install and purchase the "Bob Swift Atlassian Add-ons - Bamboo Command Line Interface (CLI)" Bamboo add-on. To install, click the settings gear top right, and click "Manage apps". Once the add-on is installed, by running a `vagrant status`, Catapult will automatically detect its existance and automatically configure settings required.
+
+Otherwise, the manual setup configuration steps are outlined below:
+
+1. Disable anonymous user access by clicking the gear at the top right and going to Overview
     1. Next, under Security, go to Global permissions and remove Access from Anonymous Users
-4. Click Create > Create a new plan from the top navigation:
+2. Click Create > Create a new plan from the top navigation:
     1. **Create Catapult Project and create BUILD Plan**
         * *Project and build plan name*
             1. Project > New Project
@@ -545,11 +565,11 @@ To avoid having to manually configure the Bamboo project, plans, stages, jobs, a
 ### 6. **Email:**
 1. **SendGrid** sign-up and configuration
     1. Create a SendGrid account at https://sendgrid.com/
-        1. Place the username that you used to sign up for SendGrid at `~/secrets/configuration.yml["company"]["sendgrid_username"]`
-        2. Place the password of the account for SendGrid at `~/secrets/configuration.yml["company"]["sendgrid_password"]`
     2. Sign in to your SendGrid account
     3. Go to Settings > API Keys.
     4. Generate an API key named "Catapult" and place at `~/secrets/configuration.yml["company"]["sendgrid_api_key"]`
+        1. Place the username "apikey" at `~/secrets/configuration.yml["company"]["sendgrid_username"]`
+        2. Place the API key at `~/secrets/configuration.yml["company"]["sendgrid_password"]`
 
 ### 7. **Verify Configuration:**
 1. To verify all of the configuration that you just set, open your command line and change directory into your fork of Catapult, then run `vagrant status`. Catapult will confirm connection to all of the Services and inform you of any problems.
@@ -914,6 +934,7 @@ The following options are available:
     * option: `software: suitecrm7`
     * option: `software: wordpress4`
     * option: `software: wordpress5`
+    * option: `software: wordpress6`
     * option: `software: xenforo1`
     * option: `software: xenforo2`
     * option: `software: zendframework2`
@@ -992,6 +1013,7 @@ Software | Install Approach | Install Notes
 `suitecrm7`         | Fork     |
 `wordpress4`        | Fork     |
 `wordpress5`        | Fork     |
+`wordpress6`        | Fork     |
 `xenforo1`          | Download |
 `xenforo2`          | Download |
 `zendframework2`    | Fork     | Your best bet is to start from the [zendframework/ZendSkeletonApplication](https://github.com/zendframework/ZendSkeletonApplication) GitHub project. Catapult assumes Zend Framwork is at the root of your repo and writes a database config file at `config/autoload/global.php`, you will also need to set `webroot: public/` in your Catapult configuration.
@@ -1019,6 +1041,7 @@ Software | `software_auto_update` Support
 `suitecrm7`         | [:x:](https://suitecrm.com/wiki/index.php/Upgrade)
 `wordpress4`        | :white_check_mark:
 `wordpress5`        | :white_check_mark:
+`wordpress6`        | :white_check_mark:
 `xenforo1`          | [:x:](https://xenforo.com/help/upgrades/)
 `xenforo2`          | :white_check_mark:
 `zendframework2`    | :white_check_mark:
@@ -1116,6 +1139,7 @@ Software | Approach | Documentation
 `suitecrm7`         |                      | 
 `wordpress4`        | Database             | http://codex.wordpress.org/Changing_The_Site_URL
 `wordpress5`        | Database             | http://codex.wordpress.org/Changing_The_Site_URL
+`wordpress6`        | Database             | http://codex.wordpress.org/Changing_The_Site_URL
 `xenforo1`          |                      |
 `xenforo2`          |                      |
 `zendframework2`    |                      |
@@ -1221,6 +1245,7 @@ Software | Tool | Command | Documentation
 `suitecrm7`         |                 |                                                        |
 `wordpress4`        | WP-CLI          | `wp-cli core update-db`                                | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
 `wordpress5`        | WP-CLI          | `wp-cli core update-db`                                | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
+`wordpress6`        | WP-CLI          | `wp-cli core update-db`                                | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
 `xenforo1`          |                 |                                                        |
 `xenforo2`          |                 |                                                        |
 `zendframework2`    |                 |                                                        |
@@ -1646,7 +1671,12 @@ Percentage of the requests served within a certain time (ms)
 
 # How-to #
 
-This section outlines Catapult maintenance tasks.
+This section outlines Catapult usage and maintenance.
+
+## Vagrant Convenience Commands ##
+
+In the LocalDev environment, convenience commands are provided for use with Vagrant. These allow you to execute `reload`, `provision`, or `up` against both dev environment VMs with a single command. Simply use `dev` as the machine name; e.g. `vagrant reload dev` or `vagrant provision dev`.
+
 
 
 ## Rotating Secrets ##

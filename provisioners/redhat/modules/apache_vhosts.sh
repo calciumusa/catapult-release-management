@@ -37,6 +37,7 @@ while IFS='' read -r -d '' key; do
     # configure vhost
     echo -e "Configuring vhost for ${domain_environment}"
     sudo mkdir --parents /var/log/httpd/${domain_environment}
+    sudo chmod 755 /var/log/httpd/${domain_environment}
     sudo touch /var/log/httpd/${domain_environment}/access_log
     sudo touch /var/log/httpd/${domain_environment}/error_log
     # set domain_tld_override_alias_additions for vhost
@@ -172,7 +173,13 @@ while IFS='' read -r -d '' key; do
         force_https_hsts="# HSTS is only enabled when force_https=true"
     fi
     # handle the software php_version setting
-    if [ "${software_php_version}" = "7.2" ]; then
+    if [ "${software_php_version}" = "7.3" ]; then
+        software_php_version_value="
+        <FilesMatch \.php$>
+            SetHandler \"proxy:fcgi://127.0.0.1:9730\"
+        </FilesMatch>
+        "
+    elif [ "${software_php_version}" = "7.2" ]; then
         software_php_version_value="
         <FilesMatch \.php$>
             SetHandler \"proxy:fcgi://127.0.0.1:9720\"
